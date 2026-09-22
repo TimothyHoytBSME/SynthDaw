@@ -9,3 +9,10 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [.agents/PLAN.md](../.agents/PLAN.md) | High-level phased roadmap for building the DAW. |
 | [.agents/LOG.md](../.agents/LOG.md) | Chronological history of notable actions taken by any agent. |
 | [docs/INDEX.md](INDEX.md) | This file. |
+| [src/index.md](../src/index.md) | Companion doc for `src/index.html`, the single HTML entry point. |
+| [src/css/main.md](../src/css/main.md) | Companion doc for `src/css/main.css`, the global stylesheet. |
+| [src/js/main.md](../src/js/main.md) | Companion doc for `src/js/main.js`, the app bootstrap. |
+| [src/js/core/eventBus.md](../src/js/core/eventBus.md) | Companion doc for `src/js/core/eventBus.js`, the pub/sub decoupling the model from the UI. |
+| [src/js/audio/audioEngine.md](../src/js/audio/audioEngine.md) | Companion doc for `src/js/audio/audioEngine.js`, the `AudioContext`/master-gain owner and note router. |
+| [src/js/audio/voice.md](../src/js/audio/voice.md) | Companion doc for `src/js/audio/voice.js`, the single-oscillator voice building block. |
+| [src/js/ui/pianoTrigger.md](../src/js/ui/pianoTrigger.md) | Companion doc for `src/js/ui/pianoTrigger.js`, the on-screen/computer-keyboard note input. |

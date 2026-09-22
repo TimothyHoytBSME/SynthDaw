@@ -1,0 +1,89 @@
+:root {
+  color-scheme: dark;
+  --bg: #14161a;
+  --fg: #e8e8ec;
+  --muted: #9a9ca6;
+  --accent: #5b8cff;
+  --key-white: #f4f4f6;
+  --key-black: #1f2127;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  padding: 1rem clamp(1rem, 4vw, 2rem);
+}
+
+.app-header h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+}
+
+.app-subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.piano {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.piano-key {
+  min-width: 48px;
+  min-height: 96px;
+  padding: 0.5rem 0.25rem;
+  border: 1px solid #3a3d46;
+  border-radius: 6px;
+  background: var(--key-white);
+  color: #14161a;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  white-space: pre-line;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.piano-key--black {
+  background: var(--key-black);
+  color: var(--fg);
+}
+
+.piano-key--active {
+  background: var(--accent) !important;
+  color: white !important;
+}
+
+@media (max-width: 480px) {
+  .piano-key {
+    min-width: 40px;
+    min-height: 72px;
+  }
+}

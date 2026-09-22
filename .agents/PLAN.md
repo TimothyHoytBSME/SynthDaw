@@ -2,7 +2,7 @@
 
 High-level phased roadmap. Each phase should be broken into scoped tasks (and git commits) at implementation time — this file stays high-level. Update the "Status" line as phases start/finish, and log notable milestones in [LOG.md](LOG.md).
 
-**Status: Phase 0 complete. Phase 1 in progress.**
+**Status: Phase 0 complete. Phase 1 complete. Phase 2 not started.**
 
 ## Guiding constraints (from CLAUDE.md)
 

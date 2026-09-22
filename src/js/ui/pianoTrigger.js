@@ -1,5 +1,7 @@
 import { bus } from "../core/eventBus.js";
 
+const UI_VELOCITY = 100;
+
 const NOTE_KEYS = [
   { note: 60, label: "C", key: "a" },
   { note: 61, label: "C#", key: "w" },
@@ -35,12 +37,12 @@ export function renderPianoTrigger(container) {
 
     const press = (event) => {
       event.preventDefault();
-      bus.emit("note:on", { note });
+      bus.emit("note:on", { note, velocity: UI_VELOCITY, source: "ui" });
       setActive(note, true);
     };
     const release = (event) => {
       event.preventDefault();
-      bus.emit("note:off", { note });
+      bus.emit("note:off", { note, source: "ui" });
       setActive(note, false);
     };
 
@@ -61,7 +63,7 @@ export function renderPianoTrigger(container) {
       return;
     }
     pressedKeys.add(note);
-    bus.emit("note:on", { note });
+    bus.emit("note:on", { note, velocity: UI_VELOCITY, source: "ui" });
     setActive(note, true);
   });
 
@@ -71,7 +73,7 @@ export function renderPianoTrigger(container) {
       return;
     }
     pressedKeys.delete(note);
-    bus.emit("note:off", { note });
+    bus.emit("note:off", { note, source: "ui" });
     setActive(note, false);
   });
 }

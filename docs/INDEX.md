@@ -16,3 +16,5 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/audio/audioEngine.md](../src/js/audio/audioEngine.md) | Companion doc for `src/js/audio/audioEngine.js`, the `AudioContext`/master-gain owner and note router. |
 | [src/js/audio/voice.md](../src/js/audio/voice.md) | Companion doc for `src/js/audio/voice.js`, the single-oscillator voice building block. |
 | [src/js/ui/pianoTrigger.md](../src/js/ui/pianoTrigger.md) | Companion doc for `src/js/ui/pianoTrigger.js`, the on-screen/computer-keyboard note input. |
+| [src/js/midi/midiInput.md](../src/js/midi/midiInput.md) | Companion doc for `src/js/midi/midiInput.js`, the Web MIDI device/message layer. |
+| [src/js/ui/midiStatus.md](../src/js/ui/midiStatus.md) | Companion doc for `src/js/ui/midiStatus.js`, the MIDI connection-status readout. |

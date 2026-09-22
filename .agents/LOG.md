@@ -18,4 +18,4 @@ Chronological history of notable actions taken by any agent in this project. App
 - Agent/Model: Claude Sonnet 5
 - What: Initialized the git repo; added `.gitignore`, `README.md`, `docs/INDEX.md`, `.agents/LOG.md`, and `.agents/PLAN.md`. No app code written yet.
 - Why: Project rules require an LLM-friendly doc index, a git repo, and a plan file before any real feature work begins.
-- Commit(s): (pending — see next commit)
+- Commit(s): c9da231

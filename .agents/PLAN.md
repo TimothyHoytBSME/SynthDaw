@@ -2,7 +2,7 @@
 
 High-level phased roadmap. Each phase should be broken into scoped tasks (and git commits) at implementation time — this file stays high-level. Update the "Status" line as phases start/finish, and log notable milestones in [LOG.md](LOG.md).
 
-**Status: Phases 0–1 complete. Phase 2 complete. Phase 3 not started.**
+**Status: Phases 0–3 complete. Phase 4 not started.**
 
 ## Guiding constraints (from CLAUDE.md)
 
@@ -29,7 +29,7 @@ Settled up front so later phases don't churn on foundational choices:
   ```
   Each `.js` file gets a sibling `.md` (e.g. `js/audio/voice.js` + `js/audio/voice.md`).
 - **State/UI sync:** a small hand-rolled event bus (publish/subscribe) decouples the audio/data layer (`core`, `audio`, `midi`) from `ui`. No virtual DOM, no framework — UI modules subscribe to model events and patch the DOM directly. This is decided now so Phase 1 establishes the pattern instead of every later phase inventing its own.
-- **Dev serving:** ES modules require `http(s)://`, not `file://` (CORS blocks module imports otherwise). Any static file server works (e.g. `npx serve`, Python's `http.server`); this repo doesn't mandate one specific tool or add it as a dependency.
+- **Dev serving:** ES modules require `http(s)://`, not `file://` (CORS blocks module imports otherwise). Any static file server works (e.g. `npx serve`, Python's `http.server`); this repo doesn't mandate one specific tool or add it as a dependency. `.claude/launch.json` runs `python -m http.server` on a fixed port for the in-app browser preview. **Gotcha:** the preview pane has been observed serving a stale cached response for a JS module even after the server process was fully restarted with fresh file content on the same port — if edits don't seem to take effect during verification, bump the port number in `launch.json` (forces a new cache key) rather than assuming the code is wrong.
 - **Testing:** no test framework dependency for now. Pure logic (tempo/timing math, MIDI parsing, data-model operations) should be written as plain functions that are easy to hand-test or later cover with a minimal assertion script; DOM/audio-graph behavior is verified manually in-browser per phase (see "Ongoing, every phase" below).
 
 ## Non-goals / open questions
@@ -61,12 +61,12 @@ Settled up front so later phases don't churn on foundational choices:
 - Map Note On/Off, velocity, pitch bend, CC (sliders/knobs/buttons) to internal event objects.
 - On-screen virtual piano keyboard as a fallback input, sharing the same event pipeline as hardware MIDI.
 
-## Phase 3 — Synth Engine Core
+## Phase 3 — Synth Engine Core ✅ (see notes)
 
-- Voice architecture: polyphony/voice allocation, note stealing.
-- Oscillator stage: waveform types (sine/saw/square/triangle + custom/wavetable), detune, multiple oscillators per voice.
-- Modulation: ADSR envelopes, LFOs, filter (at least lowpass/highpass/bandpass), routable mod matrix.
-- Patch/preset data model (serializable to JSON) independent of the UI.
+- Voice architecture: polyphony (8 voices) + oldest-voice stealing + retrigger-on-repeat. Implemented in [synthEngine.js](../src/js/audio/synthEngine.md)/[voice.js](../src/js/audio/voice.md).
+- Oscillator stage: 2 oscillators per voice, standard waveform types (sine/sawtooth/square/triangle) with per-oscillator detune and mix. **Deviation:** custom/wavetable oscillators (`PeriodicWave`) are deferred — no consumer/UI for authoring a custom wave shape exists yet; standard types cover the "verify it's audible and controllable" bar for this phase.
+- Modulation: amp + filter ADSR envelopes, one filter (lowpass/highpass/bandpass, cutoff + resonance). **Deviation:** implemented one fixed LFO (rate/depth/target ∈ {pitch, filter}) instead of a fully generic mod matrix — see the simplification note in [patch.md](../src/js/audio/patch.md). Revisit once there's a second modulation source that would justify generic routing.
+- Patch data model: plain-JSON, UI-independent, in [patch.js](../src/js/audio/patch.md); a minimal live-editing UI ([patchEditor.js](../src/js/ui/patchEditor.md)) makes every parameter audibly testable now. A real preset browser/save-load UI is deferred.
 
 ## Phase 4 — Timeline, Tracks & Transport
 

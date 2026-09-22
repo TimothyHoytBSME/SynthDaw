@@ -1,15 +1,14 @@
 import { bus } from "../core/eventBus.js";
-import { createVoice } from "./voice.js";
+import { createSynthEngine } from "./synthEngine.js";
+import { createDefaultPatch } from "./patch.js";
 
 const MASTER_GAIN = 0.2;
+const DEFAULT_VELOCITY = 100;
 
 let audioContext = null;
 let masterGain = null;
-const activeVoices = new Map();
-
-function noteToFrequency(note) {
-  return 440 * 2 ** ((note - 69) / 12);
-}
+let synthEngine = null;
+let currentPatch = createDefaultPatch();
 
 function ensureContext() {
   if (!audioContext) {
@@ -17,6 +16,8 @@ function ensureContext() {
     masterGain = audioContext.createGain();
     masterGain.gain.value = MASTER_GAIN;
     masterGain.connect(audioContext.destination);
+    synthEngine = createSynthEngine(audioContext, masterGain);
+    synthEngine.setPatch(currentPatch);
   }
   if (audioContext.state === "suspended") {
     audioContext.resume();
@@ -24,26 +25,25 @@ function ensureContext() {
   return audioContext;
 }
 
-function handleNoteOn({ note }) {
+function handleNoteOn({ note, velocity = DEFAULT_VELOCITY }) {
   ensureContext();
-  if (activeVoices.has(note)) {
-    return;
-  }
-  const voice = createVoice(audioContext, masterGain, noteToFrequency(note));
-  voice.start();
-  activeVoices.set(note, voice);
+  synthEngine.noteOn(note, velocity);
 }
 
 function handleNoteOff({ note }) {
-  const voice = activeVoices.get(note);
-  if (!voice) {
-    return;
-  }
-  voice.stop();
-  activeVoices.delete(note);
+  synthEngine?.noteOff(note);
 }
 
 export function initAudioEngine() {
   bus.on("note:on", handleNoteOn);
   bus.on("note:off", handleNoteOff);
+}
+
+export function getPatch() {
+  return currentPatch;
+}
+
+export function setPatch(nextPatch) {
+  currentPatch = nextPatch;
+  synthEngine?.setPatch(currentPatch);
 }

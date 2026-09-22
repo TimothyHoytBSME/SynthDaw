@@ -14,7 +14,11 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/main.md](../src/js/main.md) | Companion doc for `src/js/main.js`, the app bootstrap. |
 | [src/js/core/eventBus.md](../src/js/core/eventBus.md) | Companion doc for `src/js/core/eventBus.js`, the pub/sub decoupling the model from the UI. |
 | [src/js/audio/audioEngine.md](../src/js/audio/audioEngine.md) | Companion doc for `src/js/audio/audioEngine.js`, the `AudioContext`/master-gain owner and note router. |
-| [src/js/audio/voice.md](../src/js/audio/voice.md) | Companion doc for `src/js/audio/voice.js`, the single-oscillator voice building block. |
+| [src/js/audio/voice.md](../src/js/audio/voice.md) | Companion doc for `src/js/audio/voice.js`, the multi-oscillator/filter/envelope/LFO voice graph. |
+| [src/js/audio/synthEngine.md](../src/js/audio/synthEngine.md) | Companion doc for `src/js/audio/synthEngine.js`, polyphony/voice-stealing manager. |
+| [src/js/audio/patch.md](../src/js/audio/patch.md) | Companion doc for `src/js/audio/patch.js`, the JSON synth-patch data model. |
+| [src/js/audio/pitch.md](../src/js/audio/pitch.md) | Companion doc for `src/js/audio/pitch.js`, MIDI-note-to-frequency conversion. |
 | [src/js/ui/pianoTrigger.md](../src/js/ui/pianoTrigger.md) | Companion doc for `src/js/ui/pianoTrigger.js`, the on-screen/computer-keyboard note input. |
+| [src/js/ui/patchEditor.md](../src/js/ui/patchEditor.md) | Companion doc for `src/js/ui/patchEditor.js`, the live patch-parameter editing UI. |
 | [src/js/midi/midiInput.md](../src/js/midi/midiInput.md) | Companion doc for `src/js/midi/midiInput.js`, the Web MIDI device/message layer. |
 | [src/js/ui/midiStatus.md](../src/js/ui/midiStatus.md) | Companion doc for `src/js/ui/midiStatus.js`, the MIDI connection-status readout. |

@@ -1,7 +1,17 @@
 # pianoRoll.js
 
-Note editor for one [block](../core/project.md): a fixed 3-octave range (MIDI 48–83, C3–B5) of pitch rows down the left, a beat grid across matching the block's length, click-empty-cell-to-add, drag-to-move/drag-to-resize (same pointer-drag pattern as [timeline.js](./timeline.md)'s blocks), and a remove button per note. Adding or dragging a note also fires a short `note:on`/`note:off` pair on the [eventBus](../core/eventBus.md) (`previewNote`) so you hear the pitch immediately while editing — this is the "bidirectional sync with the synth engine's live preview" the plan calls for; it reuses the exact same live-note path as the on-screen piano/MIDI (see [pianoTrigger.js](./pianoTrigger.md)), not the sequencer's pre-scheduled path.
+Note editor for one [block](../core/project.md): `renderPianoRoll(container, block, { beatsPerBar })`. [timeline.js](./timeline.md) opens it in a panel below the arrangement.
 
-Opened via double-click on a timeline block (wired in `timeline.js`'s `openPianoRoll`), which owns the panel's visibility — this module only ever renders into whatever container it's given and re-renders itself wholesale on every edit (`rerender()`), same simple-and-correct-over-optimized strategy as the timeline. A note's `startBeat` is relative to the block, not the project — see the note in [project.md](../core/project.md).
+**Layout:** a toolbar (zoom 20–240 px/beat, snap 1 … 1/16 beat, a how-to hint), then a scroll area with a sticky key column (the full MIDI range, 0–127, as 20px rows) beside the grid, then a velocity lane whose horizontal scroll is kept in sync with the grid. Grid lines and black-key row shading are CSS gradients built in JS: bar, beat and row lines plus a 12-row stripe period aligned to `HIGHEST_NOTE`. There are no per-row elements.
 
-**Coupling to watch:** `ROW_HEIGHT` (20) must match the vertical period of `.piano-roll-grid`'s background gradient in `main.css` — same pattern as `timeline.js`'s `TRACK_HEADER_WIDTH`. **Known limitation (Phase 10 touch pass):** at 20px, note cells and their remove/resize controls are still fairly small touch targets — acceptable for now (fitting 3 octaves of rows in a reasonable height means *some* compactness is unavoidable without an adjustable zoom, which the piano roll doesn't have yet, unlike the timeline), but a per-viewport or user-adjustable row height would be the next improvement if this proves too cramped in real use.
+**Interactions:**
+- Click empty grid: add a note at the snapped beat, using the last placed/resized length (clamped to the block end) and velocity 100. It's previewed audibly.
+- Drag a note: moves it in time *and* pitch, and each new pitch is previewed. Starts are clamped so the note stays inside the block.
+- Drag the right edge: resize (clamped to the block end), which also becomes the default length for new notes.
+- Double-click or right-click a note: delete. There's no inline "×" button, since notes are often too small for one.
+- Velocity lane: drag a note's bar vertically. Note opacity reflects velocity. Chords starting together overlap there, so only the top bar is reachable. Proper per-note selection is in the backlog.
+- Press a key in the key column to hear that pitch (held until release). This replaces the removed on-screen piano's "audition a note" role. Previews go through the normal `note:on`/`note:off` path, so they play the selected track's instrument.
+
+**Rendering:** add/delete does a full re-render into the same container, preserving scroll. A *fresh* container (opening a block, or the timeline refreshing after a transpose) centres the view on the block's notes (or C4 if empty), so transposed notes never end up off-screen. Drags update elements in place. Edits emit `block:notes-changed { blockId }` so the timeline redraws that block's miniature. Notes past the block's end (after the block was shrunk) are drawn under a dashed, shaded "outside" region: kept, but not played (see `playableNotes`).
+
+`settings` (zoom, snap, last length) is module-level, so it persists across re-renders and between blocks. `ROW_HEIGHT` (20) must match `.piano-roll-key`'s height in `main.css`.

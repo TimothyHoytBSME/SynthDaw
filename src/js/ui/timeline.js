@@ -175,7 +175,7 @@ export function renderTimeline(container, project) {
 
     const body = document.createElement("div");
     pianoRollPanel.append(header, body);
-    renderPianoRoll(body, block);
+    renderPianoRoll(body, block, { beatsPerBar: beatsPerBar() });
   }
 
   // Re-opens on the same block id after anything that may have replaced the block object

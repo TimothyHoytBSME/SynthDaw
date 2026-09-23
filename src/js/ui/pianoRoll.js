@@ -4,7 +4,8 @@ import { addNote, removeNote, moveNote, resizeNote } from "../core/project.js";
 const LOW_NOTE = 48; // C3
 const HIGH_NOTE = 83; // B5
 const PIXELS_PER_BEAT = 40;
-const ROW_HEIGHT = 16;
+// Must match the 20px repeating-linear-gradient period on `.piano-roll-grid` in main.css.
+const ROW_HEIGHT = 20;
 const PREVIEW_VELOCITY = 100;
 const PREVIEW_DURATION_MS = 150;
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];

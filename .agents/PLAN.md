@@ -2,7 +2,7 @@
 
 High-level phased roadmap. Each phase should be broken into scoped tasks (and git commits) at implementation time — this file stays high-level. Update the "Status" line as phases start/finish, and log notable milestones in [LOG.md](LOG.md).
 
-**Status: Phases 0–6 and 9 complete. Phase 8 partially complete (looping) — both taken out of order ahead of Phase 7 (waveform editing has no content to act on yet). Phase 7 and the rest of Phase 8 not started.**
+**Status: Phases 0–6, 9, and 10 complete. Phase 8 partially complete (looping) — all taken out of order ahead of Phase 7 (waveform editing has no content to act on yet). Phase 7, the rest of Phase 8, and Phase 11–12 not started.**
 
 ## Guiding constraints (from CLAUDE.md)
 
@@ -113,11 +113,14 @@ Settled up front so later phases don't churn on foundational choices:
 - Import/New Project also call `resetMixer()` ([audioEngine.js](../src/js/audio/audioEngine.md)) since old tracks' mixer buses have no relationship to a wholesale-replaced project's tracks — full teardown/rebuild rather than reconciliation, same pattern as the Phase 6 track-removal leak fix.
 - **Deviation:** single autosave slot only (no named/multiple saved projects, no version history) — matches the app's current single-project scope; add a project browser if that becomes a real need.
 
-## Phase 10 — Responsive & Touch Polish
+## Phase 10 — Responsive & Touch Polish ✅ (see notes)
 
-- Responsive layout pass for narrow/touch viewports (phone/tablet/Android Chrome).
-- Touch gesture support: pinch-zoom timeline, drag blocks/notes, on-screen knobs/sliders usable by touch.
-- Verify MIDI controller input still works alongside touch on Android where Web MIDI is supported.
+**Taken out of order, ahead of Phase 7:** same reasoning as looping — "fully-responsive... rely heavily on mouse/touch input... ideally android too" is explicit in the project concept, while Phase 7 still has no audio content to build a waveform view around.
+
+- Responsive layout pass: audited (not guessed) real DOM measurements at mobile (375×812, reporting as a 640px viewport in this environment) and tablet (768×1024) widths — no horizontal overflow anywhere (timeline, mixer, patch editor, project controls all confirmed to fit).
+- Touch gesture support: drag blocks/notes already worked (Pointer Events unify mouse/touch/pen, and draggable elements already had `touch-action: none`) — verified this holds after the sizing pass below. On-screen knobs/sliders (native `<input type="range">`) already have adequate touch hit areas from the browser regardless of visual thinness. **Deviation:** no custom pinch-to-zoom gesture on the timeline — the existing zoom *sliders* are already touch-operable and cover the same need without the added complexity of custom multi-touch handling; revisit only if real use shows the slider isn't good enough.
+- **Real, measured problem found and fixed:** several small icon buttons and resize handles were badly undersized for touch — e.g. `.timeline-track-remove` measured 12×14px, `.piano-roll-note-resize` measured 6×14px. Enlarged every such control to an explicit `min-width`/`min-height` (24–40px depending on context) rather than letting it shrink to its glyph, and widened resize-handle hit areas; re-measured after the fix to confirm (e.g. `timeline-track-remove` → 28×28px) and re-verified drag/resize interactions still work correctly. The piano roll's note controls (~18px) remain the most cramped in the app, documented as a known limitation in [pianoRoll.md](../src/js/ui/pianoRoll.md) since fixing it properly needs a zoom control the piano roll doesn't have yet.
+- MIDI + touch coexistence: already true by construction (Web MIDI input is independent of any touch/pointer UI code, unified only at the `note:on`/`note:off` event level) — no Android hardware available in this environment to test physically, so this is verified by code/architecture inspection, not a live device.
 
 ## Phase 11 — Cross-Platform Validation & Performance
 

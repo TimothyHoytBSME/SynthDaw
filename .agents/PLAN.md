@@ -2,7 +2,7 @@
 
 High-level phased roadmap. Each phase should be broken into scoped tasks (and git commits) at implementation time — this file stays high-level. Update the "Status" line as phases start/finish, and log notable milestones in [LOG.md](LOG.md).
 
-**Status: Phases 0–6, 9, and 10 complete. Phase 8 partially complete (looping) — all taken out of order ahead of Phase 7 (waveform editing has no content to act on yet). Phase 7, the rest of Phase 8, and Phase 11–12 not started.**
+**Status: Phases 0–6, 9, and 10 complete. Phase 8 (looping) and Phase 12 (undo/redo + shortcuts) partially complete — all taken out of order ahead of Phase 7 (waveform editing has no content to act on yet) and Phase 11 (needs other platforms/devices). Phase 7, the rest of Phase 8/12, and Phase 11 not started.**
 
 ## Guiding constraints (from CLAUDE.md)
 
@@ -128,11 +128,13 @@ Settled up front so later phases don't churn on foundational choices:
 - Audio performance profiling (voice count ceilings, glitch/underrun checks under load).
 - Accessibility pass (keyboard navigation where feasible, contrast, touch target sizing).
 
-## Phase 12 — Polish & Quality-of-Life
+## Phase 12 — Polish & Quality-of-Life (partial — see notes)
 
-- Undo/redo across editing actions.
-- Keyboard shortcuts for transport/editing.
-- Theming, onboarding/first-run guidance.
+**Taken out of order, ahead of Phase 7 and 11:** undo/redo and basic transport shortcuts are high-value, well-scoped, and had no dependency on anything still missing — unlike Phase 7 (needs audio content) or Phase 11 (needs other Chrome platforms/devices this environment can't provide).
+
+- ✅ Undo/redo ([history.js](../src/js/core/history.md)): snapshot-based, built entirely on the plain-JSON project model from Phase 9 rather than per-action command objects. Debounces rapid-fire changes (500ms) so one drag gesture is one undo step, not dozens — verified in-browser with a real 8-step simulated drag collapsing into exactly one undo. Wired into [projectControls.js](../src/js/ui/projectControls.md) as Undo/Redo buttons that disable themselves correctly via a `history:changed` event.
+- ✅ Keyboard shortcuts ([keyboardShortcuts.js](../src/js/core/keyboardShortcuts.md)): Space (play/pause), Ctrl/Cmd+Z (undo), Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y (redo) — all correctly suppressed while a text/number input has focus (verified: Space while the tempo field is focused does not toggle playback).
+- ❌ Not done: theming (only the one dark theme exists) and onboarding/first-run guidance (no tutorial or empty-state help text) — both are pure UI polish with no functional dependency on anything else, genuinely just not gotten to yet, unlike the other deviations in this plan which reflect deliberate scope calls.
 
 ## Ongoing, every phase
 

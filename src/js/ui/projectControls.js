@@ -1,8 +1,15 @@
 import { bus } from "../core/eventBus.js";
-import { serializeProject, parseProject, replaceProjectContents, addTrack } from "../core/project.js";
+import {
+  serializeProject,
+  parseProject,
+  replaceProjectContents,
+  createProject,
+  addTrack,
+} from "../core/project.js";
 import { resetMixer, getPatch } from "../audio/audioEngine.js";
 import { renderProjectToBuffer } from "../audio/exportRender.js";
 import { audioBufferToWavBlob } from "../audio/wavEncoder.js";
+import { undo, redo, canUndo, canRedo } from "../core/history.js";
 
 const DOWNLOAD_FILENAME = "synthdaw-project.json";
 const WAV_FILENAME = "synthdaw-export.wav";
@@ -17,6 +24,23 @@ function downloadBlob(blob, filename) {
 }
 
 export function renderProjectControls(container, project, onReplaced) {
+  const undoButton = document.createElement("button");
+  undoButton.type = "button";
+  undoButton.textContent = "↶ Undo";
+  undoButton.disabled = !canUndo();
+  undoButton.addEventListener("click", () => undo());
+
+  const redoButton = document.createElement("button");
+  redoButton.type = "button";
+  redoButton.textContent = "↷ Redo";
+  redoButton.disabled = !canRedo();
+  redoButton.addEventListener("click", () => redo());
+
+  bus.on("history:changed", ({ canUndo: undoAvailable, canRedo: redoAvailable }) => {
+    undoButton.disabled = !undoAvailable;
+    redoButton.disabled = !redoAvailable;
+  });
+
   const newButton = document.createElement("button");
   newButton.type = "button";
   newButton.textContent = "New Project";
@@ -24,7 +48,7 @@ export function renderProjectControls(container, project, onReplaced) {
     if (!window.confirm("Start a new project? Unsaved changes will be lost.")) {
       return;
     }
-    replaceProjectContents(project, { tracks: [], master: { volume: 0.2, effects: [] }, loop: { enabled: false, startBeat: 0, endBeat: 8 }, tempo: 120, timeSignature: { beatsPerBar: 4 } });
+    replaceProjectContents(project, createProject());
     addTrack(project, { name: "Track 1" });
     resetMixer();
     onReplaced();
@@ -89,5 +113,14 @@ export function renderProjectControls(container, project, onReplaced) {
     status.textContent = "Saved";
   });
 
-  container.append(newButton, exportButton, exportWavButton, importButton, importInput, status);
+  container.append(
+    undoButton,
+    redoButton,
+    newButton,
+    exportButton,
+    exportWavButton,
+    importButton,
+    importInput,
+    status,
+  );
 }

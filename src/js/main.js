@@ -3,6 +3,8 @@ import { initMIDIInput } from "./midi/midiInput.js";
 import { createProject, addTrack, syncIdCounter } from "./core/project.js";
 import { setProject } from "./core/transportController.js";
 import { loadProject, initAutosave } from "./core/persistence.js";
+import { initHistory } from "./core/history.js";
+import { initKeyboardShortcuts } from "./core/keyboardShortcuts.js";
 import { renderPianoTrigger } from "./ui/pianoTrigger.js";
 import { renderMIDIStatus } from "./ui/midiStatus.js";
 import { renderPatchEditor } from "./ui/patchEditor.js";
@@ -44,6 +46,8 @@ async function init() {
   renderProjectUI();
   renderProjectControls(document.getElementById("project-controls"), project, renderProjectUI);
   initAutosave(() => project);
+  initHistory(project, renderProjectUI);
+  initKeyboardShortcuts();
 }
 
 document.addEventListener("DOMContentLoaded", init);

@@ -46,6 +46,7 @@ body {
 
 .project-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   margin-top: 0.6rem;
@@ -60,6 +61,11 @@ body {
   font-size: 0.75rem;
   cursor: pointer;
   min-height: 40px;
+}
+
+.project-controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .project-status {

@@ -1,0 +1,9 @@
+# history.js
+
+Undo/redo built entirely on top of the plain-JSON-serializable [project](./project.md) model from Phase 9 — no separate "command" objects or per-action undo logic; every undo step is just a full project snapshot (`JSON.parse(JSON.stringify(project))`) plus [`replaceProjectContents`](./project.md) to restore one.
+
+**Coalescing bursts into one undo step:** `project:changed` fires on *every* mutator call, including once per `pointermove` during a drag (see [timeline.js](../ui/timeline.md)/[pianoRoll.js](../ui/pianoRoll.md)). Debouncing (500ms) is what turns "one drag gesture" into "one undo step" instead of dozens: the *first* change in a burst pushes `lastSnapshot` (the state as of the end of the *previous* burst) onto the undo stack; later changes in the same burst just reset the debounce timer; `lastSnapshot` only advances once things go quiet. Get this backwards (e.g. push on every change, or advance `lastSnapshot` immediately) and undo either does nothing useful or requires dozens of presses to undo one visible action.
+
+**Re-entrancy guard:** `restore()` calls `replaceProjectContents`, which itself emits `project:changed` — necessary so [persistence.js](./persistence.md)'s autosave still fires after an undo/redo, but this module's own `handleChanged` must ignore that particular event or every undo would push a new (wrong) undo entry for itself. The `isRestoring` flag is scoped to this module only, not a global event-suppression switch, specifically so autosave is unaffected.
+
+`initHistory(project, onRestore)` takes the `onRestore` callback ([main.js](../main.md) passes its `renderProjectUI`) because undo/redo can change *anything* about the project (tracks added/removed, whole different tempo) — same "re-render everything" strategy as [projectControls.js](../ui/projectControls.md)'s New/Import, including the same `resetMixer()` call for the same reason (old track ids may not exist in the restored snapshot).

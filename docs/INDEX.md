@@ -42,3 +42,5 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/ui/projectControls.md](../src/js/ui/projectControls.md) | Companion doc for `src/js/ui/projectControls.js`, New/Export/Import project controls. |
 | [src/js/audio/exportRender.md](../src/js/audio/exportRender.md) | Companion doc for `src/js/audio/exportRender.js`, offline (non-realtime) project rendering. |
 | [src/js/audio/wavEncoder.md](../src/js/audio/wavEncoder.md) | Companion doc for `src/js/audio/wavEncoder.js`, `AudioBuffer` → WAV file encoding. |
+| [src/js/core/history.md](../src/js/core/history.md) | Companion doc for `src/js/core/history.js`, snapshot-based undo/redo. |
+| [src/js/core/keyboardShortcuts.md](../src/js/core/keyboardShortcuts.md) | Companion doc for `src/js/core/keyboardShortcuts.js`, global Space/Ctrl+Z/Ctrl+Y shortcuts. |

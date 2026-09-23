@@ -1,6 +1,6 @@
 import { createTransport } from "./transport.js";
 import { playClick } from "../audio/click.js";
-import { ensureAudioContext, getMasterGain, scheduleNote } from "../audio/audioEngine.js";
+import { ensureAudioContext, getMasterGain, getMixer, scheduleNote } from "../audio/audioEngine.js";
 
 let transport = null;
 let metronomeEnabled = true;
@@ -26,13 +26,21 @@ function scheduleProjectNotes(windowStart, windowEnd, beatToContextTime) {
   if (!project) {
     return;
   }
+  const mixer = getMixer();
   for (const track of project.tracks) {
+    const trackBus = mixer.getTrackBus(track.id);
     for (const block of track.blocks) {
       for (const note of block.notes) {
         const absoluteStart = block.startBeat + note.startBeat;
         if (absoluteStart >= windowStart && absoluteStart < windowEnd) {
           const durationSeconds = beatsToSeconds(note.lengthBeats, transport.getTempo());
-          scheduleNote(note.note, note.velocity, beatToContextTime(absoluteStart), durationSeconds);
+          scheduleNote(
+            note.note,
+            note.velocity,
+            beatToContextTime(absoluteStart),
+            durationSeconds,
+            trackBus.gainNode,
+          );
         }
       }
     }

@@ -1,0 +1,7 @@
+# effectChain.js
+
+An ordered, mutable series of effect instances between one `input` `GainNode` and a fixed `destination` node given at creation. Every effect factory (see [effects/](effects/) and [effectTypes.js](./effectTypes.md)) exposes the same `{ input, output, setParam, dispose }` shape specifically so this chain can wire them together generically without knowing what any of them do internally.
+
+**Bypass and reordering both work by full rewire, not incremental patching:** `rewire()` disconnects `headInput` and every stage's `output`, then reconnects `headInput -> stage1.input, stage1.output -> stage2.input, ..., lastActiveStage.output -> destination`, skipping any `bypassed` stage entirely (its node stays instantiated and keeps its parameters, just disconnected from the graph — silent, not processing, cheap). This is the same "just rebuild it" strategy used throughout the UI layer (see [timeline.js](../ui/timeline.md)) applied to the audio graph — correct and simple given effect chains are short (a handful of stages), not optimized for chains with many effects.
+
+`addEffect`/`removeEffect`/`setBypass`/`setParam` all operate on a `stageId` (opaque, chain-local — not the same as a project effect descriptor's `id` from [project.js](../core/project.md), though [mixer.js](./mixer.md) keeps a 1:1 correspondence between them by fully rebuilding the chain from the project's effect list on every change; see that file for why).

@@ -1,0 +1,3 @@
+# reverb.js
+
+Algorithmic reverb via `ConvolverNode`: rather than loading an impulse-response audio file (no external assets in this project — see the non-goals in [PLAN.md](../../../../.agents/PLAN.md)), `generateImpulseResponse` synthesizes one at runtime as exponentially-decaying stereo white noise (`(random*2-1) * (1 - i/length)^2.5`). `size` (seconds, 0.2–5) controls the decay length and regenerates the buffer; `mix` blends wet/dry. Regenerating the impulse buffer is the most expensive `setParam` call in `effects/` (allocates `sampleRate * size` samples × 2 channels) — infrequent user adjustment makes this fine, but don't call it in a hot loop. Same `{ input, output, setParam, dispose }` shape as the rest of `effects/` — see [effectChain.md](../effectChain.md).

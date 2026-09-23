@@ -28,3 +28,13 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/audio/click.md](../src/js/audio/click.md) | Companion doc for `src/js/audio/click.js`, the metronome click sound. |
 | [src/js/ui/timeline.md](../src/js/ui/timeline.md) | Companion doc for `src/js/ui/timeline.js`, the timeline/tracks/transport UI. |
 | [src/js/ui/pianoRoll.md](../src/js/ui/pianoRoll.md) | Companion doc for `src/js/ui/pianoRoll.js`, the per-block note editor. |
+| [src/js/audio/effectChain.md](../src/js/audio/effectChain.md) | Companion doc for `src/js/audio/effectChain.js`, the ordered/bypassable effect-stage router. |
+| [src/js/audio/effectTypes.md](../src/js/audio/effectTypes.md) | Companion doc for `src/js/audio/effectTypes.js`, the effect-type registry + UI param metadata. |
+| [src/js/audio/effects/delay.md](../src/js/audio/effects/delay.md) | Companion doc for `src/js/audio/effects/delay.js`, feedback delay. |
+| [src/js/audio/effects/distortion.md](../src/js/audio/effects/distortion.md) | Companion doc for `src/js/audio/effects/distortion.js`, waveshaper distortion. |
+| [src/js/audio/effects/reverb.md](../src/js/audio/effects/reverb.md) | Companion doc for `src/js/audio/effects/reverb.js`, algorithmic (generated-IR) reverb. |
+| [src/js/audio/effects/compressor.md](../src/js/audio/effects/compressor.md) | Companion doc for `src/js/audio/effects/compressor.js`, dynamics compressor wrapper. |
+| [src/js/audio/effects/chorus.md](../src/js/audio/effects/chorus.md) | Companion doc for `src/js/audio/effects/chorus.js`, modulated-delay chorus. |
+| [src/js/audio/effects/eq.md](../src/js/audio/effects/eq.md) | Companion doc for `src/js/audio/effects/eq.js`, fixed 3-band EQ. |
+| [src/js/audio/mixer.md](../src/js/audio/mixer.md) | Companion doc for `src/js/audio/mixer.js`, per-track buses + master chain, kept in sync with project data. |
+| [src/js/ui/mixer.md](../src/js/ui/mixer.md) | Companion doc for `src/js/ui/mixer.js`, the channel-strip/effects-rack UI. |

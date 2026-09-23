@@ -52,11 +52,11 @@ export function createSynthEngine(audioContext, destination) {
     // Pre-scheduled playback (sequencer): start+stop are both scheduled up front at exact
     // future AudioContext times, entirely separate from the live activeVoices/stealing pool
     // above (a sequenced note is never live-retriggered or stolen mid-playback).
-    scheduleNote(note, velocity, startTime, durationSeconds) {
+    scheduleNote(note, velocity, startTime, durationSeconds, destinationOverride) {
       if (!patch) {
         return;
       }
-      const voice = createVoice(audioContext, destination, note, velocity, patch);
+      const voice = createVoice(audioContext, destinationOverride ?? destination, note, velocity, patch);
       voice.start(startTime);
       voice.stop(false, startTime + durationSeconds);
     },

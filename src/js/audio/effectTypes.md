@@ -1,0 +1,3 @@
+# effectTypes.js
+
+The effect registry: `EFFECT_TYPES` maps a type key (`"delay"`, `"distortion"`, `"reverb"`, `"compressor"`, `"chorus"`, `"eq"`) to `{ label, create, paramDefs }`, where `create` is that effect's factory from [effects/](effects/) and `paramDefs` is a config-driven list (`{ name, label, min, max, step, default }`) that [mixer.js](../ui/mixer.md) uses to generate sliders generically — the exact same pattern [patchEditor.js](../ui/patchEditor.md) uses for synth parameters. Adding a new effect type means: write the factory in `effects/`, add one entry here, and the mixer UI picks it up automatically — no UI code to touch. `defaultParamsFor(type)` builds a fresh `{ name: default, ... }` object from `paramDefs`, used whenever a new effect instance is added.

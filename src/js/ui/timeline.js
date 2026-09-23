@@ -1,6 +1,7 @@
-import { addTrack, addBlock, removeBlock, moveBlock, resizeBlock } from "../core/project.js";
+import { addTrack, removeTrack, addBlock, removeBlock, moveBlock, resizeBlock } from "../core/project.js";
 import { getTransport, setMetronomeEnabled, isMetronomeEnabled } from "../core/transportController.js";
 import { renderPianoRoll } from "./pianoRoll.js";
+import { bus } from "../core/eventBus.js";
 
 const MIN_PIXELS_PER_BEAT = 10;
 const MAX_PIXELS_PER_BEAT = 120;
@@ -252,7 +253,23 @@ export function renderTimeline(container, project) {
 
       const header = document.createElement("div");
       header.className = "timeline-track-header";
-      header.textContent = track.name;
+
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = track.name;
+      header.appendChild(nameSpan);
+
+      const removeTrackButton = document.createElement("button");
+      removeTrackButton.type = "button";
+      removeTrackButton.className = "timeline-track-remove";
+      removeTrackButton.textContent = "×";
+      removeTrackButton.addEventListener("click", () => {
+        removeTrack(project, track.id);
+        renderTracks();
+        bus.emit("track:removed", { trackId: track.id });
+        bus.emit("project:tracks-changed", {});
+      });
+      header.appendChild(removeTrackButton);
+
       row.appendChild(header);
 
       const lane = document.createElement("div");
@@ -326,6 +343,7 @@ export function renderTimeline(container, project) {
   addTrackButton.addEventListener("click", () => {
     addTrack(project);
     renderTracks();
+    bus.emit("project:tracks-changed", {});
   });
 
   renderRuler();

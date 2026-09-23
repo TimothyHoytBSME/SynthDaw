@@ -1,6 +1,7 @@
 import { bus } from "../core/eventBus.js";
 import { createSynthEngine } from "./synthEngine.js";
 import { createDefaultPatch } from "./patch.js";
+import { createMixer } from "./mixer.js";
 
 const MASTER_GAIN = 0.2;
 const DEFAULT_VELOCITY = 100;
@@ -8,6 +9,7 @@ const DEFAULT_VELOCITY = 100;
 let audioContext = null;
 let masterGain = null;
 let synthEngine = null;
+let mixer = null;
 let currentPatch = createDefaultPatch();
 
 function ensureContext() {
@@ -15,9 +17,9 @@ function ensureContext() {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     masterGain = audioContext.createGain();
     masterGain.gain.value = MASTER_GAIN;
-    masterGain.connect(audioContext.destination);
     synthEngine = createSynthEngine(audioContext, masterGain);
     synthEngine.setPatch(currentPatch);
+    mixer = createMixer(audioContext, masterGain); // routes masterGain -> master effect chain -> destination
   }
   if (audioContext.state === "suspended") {
     audioContext.resume();
@@ -34,9 +36,14 @@ function handleNoteOff({ note }) {
   synthEngine?.noteOff(note);
 }
 
+function handleTrackRemoved({ trackId }) {
+  mixer?.removeTrackBus(trackId);
+}
+
 export function initAudioEngine() {
   bus.on("note:on", handleNoteOn);
   bus.on("note:off", handleNoteOff);
+  bus.on("track:removed", handleTrackRemoved);
 }
 
 export function ensureAudioContext() {
@@ -57,7 +64,12 @@ export function setPatch(nextPatch) {
   synthEngine?.setPatch(currentPatch);
 }
 
-export function scheduleNote(note, velocity, startTime, durationSeconds) {
+export function scheduleNote(note, velocity, startTime, durationSeconds, destinationNode) {
   ensureContext();
-  synthEngine.scheduleNote(note, velocity, startTime, durationSeconds);
+  synthEngine.scheduleNote(note, velocity, startTime, durationSeconds, destinationNode);
+}
+
+export function getMixer() {
+  ensureContext();
+  return mixer;
 }

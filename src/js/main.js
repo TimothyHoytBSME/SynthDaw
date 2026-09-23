@@ -6,6 +6,7 @@ import { renderPianoTrigger } from "./ui/pianoTrigger.js";
 import { renderMIDIStatus } from "./ui/midiStatus.js";
 import { renderPatchEditor } from "./ui/patchEditor.js";
 import { renderTimeline } from "./ui/timeline.js";
+import { renderMixer } from "./ui/mixer.js";
 
 function init() {
   initAudioEngine();
@@ -18,6 +19,7 @@ function init() {
   addTrack(project, { name: "Track 1" });
   setProject(project);
   renderTimeline(document.getElementById("timeline"), project);
+  renderMixer(document.getElementById("mixer"), project);
 }
 
 document.addEventListener("DOMContentLoaded", init);

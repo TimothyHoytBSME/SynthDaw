@@ -10,6 +10,7 @@ export function createProject() {
     tempo: 120,
     timeSignature: { beatsPerBar: 4 },
     tracks: [],
+    master: { volume: 0.2, effects: [] },
   };
 }
 
@@ -18,6 +19,11 @@ export function addTrack(project, { name } = {}) {
     id: nextId("track"),
     name: name ?? `Track ${project.tracks.length + 1}`,
     blocks: [],
+    volume: 1,
+    pan: 0,
+    muted: false,
+    soloed: false,
+    effects: [],
   };
   project.tracks.push(track);
   return track;
@@ -67,4 +73,52 @@ export function moveNote(note, newStartBeat) {
 
 export function resizeNote(note, newLengthBeats) {
   note.lengthBeats = Math.max(0.25, newLengthBeats);
+}
+
+export function setMasterVolume(project, value) {
+  project.master.volume = value;
+}
+
+export function setTrackVolume(track, value) {
+  track.volume = value;
+}
+
+export function setTrackPan(track, value) {
+  track.pan = value;
+}
+
+export function setTrackMuted(track, muted) {
+  track.muted = muted;
+}
+
+export function setTrackSoloed(track, soloed) {
+  track.soloed = soloed;
+}
+
+// `effectsOwner` is anything shaped like `{ effects: [] }` — a Track or `project.master`.
+export function addEffect(effectsOwner, type, params) {
+  const effect = { id: nextId("effect"), type, params: { ...params }, bypassed: false };
+  effectsOwner.effects.push(effect);
+  return effect;
+}
+
+export function removeEffect(effectsOwner, effectId) {
+  effectsOwner.effects = effectsOwner.effects.filter((effect) => effect.id !== effectId);
+}
+
+export function setEffectParam(effect, name, value) {
+  effect.params[name] = value;
+}
+
+export function setEffectBypass(effect, bypassed) {
+  effect.bypassed = bypassed;
+}
+
+export function moveEffect(effectsOwner, effectId, newIndex) {
+  const index = effectsOwner.effects.findIndex((effect) => effect.id === effectId);
+  if (index === -1) {
+    return;
+  }
+  const [effect] = effectsOwner.effects.splice(index, 1);
+  effectsOwner.effects.splice(newIndex, 0, effect);
 }

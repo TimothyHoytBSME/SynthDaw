@@ -2,7 +2,7 @@
 
 High-level phased roadmap. Each phase should be broken into scoped tasks (and git commits) at implementation time — this file stays high-level. Update the "Status" line as phases start/finish, and log notable milestones in [LOG.md](LOG.md).
 
-**Status: Phases 0–5 complete. Phase 6 not started.**
+**Status: Phases 0–6 complete. Phase 7 not started.**
 
 ## Guiding constraints (from CLAUDE.md)
 
@@ -83,11 +83,14 @@ Settled up front so later phases don't churn on foundational choices:
 - Fixed a real bug surfaced while building this: `voice.js`'s release scheduling used to read `AudioParam.value` synchronously, which is only correct for a live "release right now" call — pre-scheduled (future) releases needed `cancelAndHoldAtTime` instead. See [voice.md](../src/js/audio/voice.md).
 - **Still a non-goal:** every track shares one global patch (no per-track instrument yet — see [project.md](../src/js/core/project.md)); MIDI *export/import* (as in, `.mid` file I/O) was never in scope, only Web MIDI *device input* (Phase 2).
 
-## Phase 6 — Effects & Mixing
+## Phase 6 — Effects & Mixing ✅ (see notes)
 
-- Per-track and master effect chains (reverb, delay, distortion/saturation, EQ, compression, chorus, etc.) built on Web Audio nodes.
-- Effect chain UI: add/remove/reorder, per-effect parameter controls, bypass.
-- Mixer view: per-track volume/pan/mute/solo, sends.
+- Six effect types on Web Audio nodes ([effects/](../src/js/audio/effects/)): delay, distortion, algorithmic reverb (generated impulse response — no external audio assets), compressor, chorus, 3-band EQ. Each is a self-contained `{ input, output, setParam, dispose }` factory registered in [effectTypes.js](../src/js/audio/effectTypes.md).
+- Per-track and master effect chains via [effectChain.js](../src/js/audio/effectChain.md) (ordered, bypassable, full-rewire-on-change) and [mixer.js](../src/js/audio/mixer.md) (owns the per-track buses + master chain, keeps them synced to project data). Signal flow: track gain → track effects → pan → master gain → master effects → destination.
+- Effect chain UI: add/remove + per-effect param sliders + bypass, generically generated from `paramDefs` (same pattern as the patch editor) — see [mixer.js (ui)](../src/js/ui/mixer.md). **Deviation:** no drag-to-reorder UI yet (`moveEffect` exists in [project.js](../src/js/core/project.md) but nothing calls it) — reordering by removing and re-adding works today; a proper drag handle is a small follow-up, not attempted here to keep the UI's first pass focused.
+- Mixer view: per-track volume/pan/mute/solo (solo correctly silences all non-soloed tracks, recomputed together since solo isn't a per-track-isolated property) and a master strip. **Deviation:** no sends/aux buses — only insert effects. A send model (shared reverb/delay buses with per-track send levels) is meaningfully more plumbing than insert effects and wasn't attempted this pass.
+- **Deviation, carried from Phase 5:** live-played notes (on-screen piano/MIDI) still route straight to the master bus, bypassing per-track effects/volume/pan — only *sequenced* (Play-triggered) notes go through a track's bus. Fixing this needs a "currently selected/armed track for live input" concept that doesn't exist yet.
+- Verified in-browser end-to-end via connection tracing (not just code review): adding a Delay effect through the mixer UI produces the exact expected live node graph (`GainNode -> DelayNode -> GainNode` for its dry/wet/feedback, chain output into the track's `StereoPannerNode`); mute/solo confirmed to actually zero the track bus's gain; removing a track now also disposes its mixer bus (a real leak caught and fixed during this phase — see [audioEngine.md](../src/js/audio/audioEngine.md)'s `track:removed` handling).
 
 ## Phase 7 — Waveform Editing & Automation
 

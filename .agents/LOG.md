@@ -143,5 +143,5 @@ Chronological history of notable actions taken by any agent in this project. App
 - Agent/Model: Claude Opus 5.5
 - What: `core/recorder.js` records MIDI/computer-keyboard input on the selected track into a bar-aligned block (optional ¼-beat quantize; loop-wrap aware; held notes closed at Stop). Pitch bend is ±2 semitones on live voices. `midi/midiMap.js` plus per-slider learn buttons map CCs to patch parameters (localStorage, applied to the selected track with the slider's own log/linear scaling). Also: `+ Effect` touch-size fix, keyboard hint hidden on touch devices, README status updated.
 - Verified in-browser (MIDI permission is denied in the preview, so MIDI was simulated via bus events): a keyboard take with an octave shift and a note held through Stop became the expected quantized block; CC21 was learned and drove cutoff 40 Hz–16 kHz and persisted; an unmapped CC did nothing; pitch bend moved held oscillators +200 cents. The final regression on a fresh project (add block → piano-roll notes → preset + reverb → play → WAV export → JSON round-trip) produced no console errors; a 375px viewport had no horizontal overflow.
-- Commit(s): (this commit)
+- Commit(s): a564e26
 

@@ -75,4 +75,4 @@ Chronological history of notable actions taken by any agent in this project. App
 - Verified in-browser after the fix: position samples stay within the loop's numeric range across many cycles with correct wrapping; note-trigger counts matched the expected count exactly for both a short (2.6s / ~5 cycles) and long (6s / 12 cycles, stress test) run with zero drift; the visual loop region renders and hides correctly; disabling the loop returns to normal linear playback.
 - Deviations documented in `PLAN.md`: punch in/out recording and an arrangement-level bar-collapse view are not done (same "nothing to capture yet" reasoning as transport `record` in Phase 4).
 - Why: Explicit concept requirement ("It should have looping"), and higher-value than starting Phase 7 while there's no audio content for a waveform view to display yet.
-- Commit(s): (pending)
+- Commit(s): c7588fa

@@ -2,7 +2,7 @@
 
 High-level phased roadmap. Each phase should be broken into scoped tasks (and git commits) at implementation time — this file stays high-level. Update the "Status" line as phases start/finish, and log notable milestones in [LOG.md](LOG.md).
 
-**Status: Phases 0–6, 9, and 10 complete. Phase 8 (looping) and Phase 12 (undo/redo + shortcuts) partially complete — all taken out of order ahead of Phase 7 (waveform editing has no content to act on yet) and Phase 11 (needs other platforms/devices). Phase 7, the rest of Phase 8/12, and Phase 11 not started.**
+**Status: Phases 0–6, 9, and 10 complete. Phase 8 (looping) and Phase 12 (undo/redo + shortcuts) partially complete. Phase 7 and the rest of Phase 8/12 not started. Phase 11 (cross-platform validation) is on hold indefinitely per explicit instruction — this environment can't test Linux/Android/other-device Chrome anyway, and it's not blocking use of the app on the one platform (Windows Chrome) that can be tested here.**
 
 ## Guiding constraints (from CLAUDE.md)
 
@@ -122,7 +122,9 @@ Settled up front so later phases don't churn on foundational choices:
 - **Real, measured problem found and fixed:** several small icon buttons and resize handles were badly undersized for touch — e.g. `.timeline-track-remove` measured 12×14px, `.piano-roll-note-resize` measured 6×14px. Enlarged every such control to an explicit `min-width`/`min-height` (24–40px depending on context) rather than letting it shrink to its glyph, and widened resize-handle hit areas; re-measured after the fix to confirm (e.g. `timeline-track-remove` → 28×28px) and re-verified drag/resize interactions still work correctly. The piano roll's note controls (~18px) remain the most cramped in the app, documented as a known limitation in [pianoRoll.md](../src/js/ui/pianoRoll.md) since fixing it properly needs a zoom control the piano roll doesn't have yet.
 - MIDI + touch coexistence: already true by construction (Web MIDI input is independent of any touch/pointer UI code, unified only at the `note:on`/`note:off` event level) — no Android hardware available in this environment to test physically, so this is verified by code/architecture inspection, not a live device.
 
-## Phase 11 — Cross-Platform Validation & Performance
+## Phase 11 — Cross-Platform Validation & Performance — ⏸ ON HOLD INDEFINITELY
+
+Put on hold by explicit instruction (2026-09-22). Not a technical blocker — this environment genuinely can't test Chrome/Linux or Chrome/Android (no such devices available), and holding it doesn't block using or testing the app on Chrome/Windows in the meantime.
 
 - Manual test pass on Chrome/Windows, Chrome/Linux, Chrome/Android.
 - Audio performance profiling (voice count ceilings, glitch/underrun checks under load).

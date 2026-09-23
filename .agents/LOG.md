@@ -102,3 +102,9 @@ Chronological history of notable actions taken by any agent in this project. App
 - Deviations documented in `PLAN.md`: theming and onboarding/first-run guidance are not done — plain remaining work, not a deliberate scope cut.
 - Why: High value, well-scoped, and immediately usable — mistakes while editing a timeline/piano-roll are common, and losing them without undo would be a real usability gap.
 - Commit(s): 168db80
+
+### 2026-09-22 — Phase 11 put on hold indefinitely
+- Agent/Model: Claude Sonnet 5
+- What: Marked Phase 11 (cross-platform validation & performance) on hold indefinitely in `PLAN.md`, per explicit instruction. No code changes.
+- Why: This environment can't test Chrome/Linux or Chrome/Android (no such devices available), and the app is fully usable/testable on Chrome/Windows without it — holding it isn't a blocker for anything else in the plan.
+- Commit(s): (pending)

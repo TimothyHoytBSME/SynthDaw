@@ -1,0 +1,5 @@
+# persistence.js
+
+IndexedDB-backed save/load for the current project, plus a debounced autosave. `saveProject`/`loadProject` store under one fixed key (`"autosave"`) in a single object store — there's no multi-project browser or named-save UI yet, just "the one project this tab is working on," matching the app's current single-project scope. IndexedDB's structured clone stores the plain-JSON [project](../core/project.md) object directly; no `JSON.stringify` needed here (that's only for [export/import](../ui/projectControls.md), which needs an actual string for a file).
+
+`initAutosave(getProject)` subscribes to `project:changed` (emitted by every mutator in [project.js](./project.md)) and saves ~800ms after the last change, coalescing rapid-fire edits (e.g. dragging a slider) into one write. A failed save (private browsing, quota exceeded) is swallowed — the app keeps working, and [projectControls.js](../ui/projectControls.md)'s Export JSON is the manual fallback. This is why every project mutator needs to call `notifyChanged()`: skipping it on a new mutator means silent data loss on reload for whatever that mutator changes.

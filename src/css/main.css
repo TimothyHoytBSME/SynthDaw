@@ -44,6 +44,28 @@ body {
   font-family: ui-monospace, monospace;
 }
 
+.project-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.project-controls button {
+  background: #2a2d35;
+  color: var(--fg);
+  border: 1px solid #3a3d46;
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.project-status {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
 main {
   flex: 1;
   display: flex;

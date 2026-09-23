@@ -73,3 +73,7 @@ export function getMixer() {
   ensureContext();
   return mixer;
 }
+
+export function resetMixer() {
+  mixer?.reset();
+}

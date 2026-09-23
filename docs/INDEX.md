@@ -38,3 +38,7 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/audio/effects/eq.md](../src/js/audio/effects/eq.md) | Companion doc for `src/js/audio/effects/eq.js`, fixed 3-band EQ. |
 | [src/js/audio/mixer.md](../src/js/audio/mixer.md) | Companion doc for `src/js/audio/mixer.js`, per-track buses + master chain, kept in sync with project data. |
 | [src/js/ui/mixer.md](../src/js/ui/mixer.md) | Companion doc for `src/js/ui/mixer.js`, the channel-strip/effects-rack UI. |
+| [src/js/core/persistence.md](../src/js/core/persistence.md) | Companion doc for `src/js/core/persistence.js`, IndexedDB save/load + debounced autosave. |
+| [src/js/ui/projectControls.md](../src/js/ui/projectControls.md) | Companion doc for `src/js/ui/projectControls.js`, New/Export/Import project controls. |
+| [src/js/audio/exportRender.md](../src/js/audio/exportRender.md) | Companion doc for `src/js/audio/exportRender.js`, offline (non-realtime) project rendering. |
+| [src/js/audio/wavEncoder.md](../src/js/audio/wavEncoder.md) | Companion doc for `src/js/audio/wavEncoder.js`, `AudioBuffer` → WAV file encoding. |

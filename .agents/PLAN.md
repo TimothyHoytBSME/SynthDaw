@@ -2,7 +2,7 @@
 
 High-level phased roadmap. Each phase should be broken into scoped tasks (and git commits) at implementation time — this file stays high-level. Update the "Status" line as phases start/finish, and log notable milestones in [LOG.md](LOG.md).
 
-**Status: Phases 0–6 complete. Phase 8 partially complete (looping) — taken out of order ahead of Phase 7 (waveform editing has no content to act on yet). Phase 7 and the rest of Phase 8 not started.**
+**Status: Phases 0–6 and 9 complete. Phase 8 partially complete (looping) — both taken out of order ahead of Phase 7 (waveform editing has no content to act on yet). Phase 7 and the rest of Phase 8 not started.**
 
 ## Guiding constraints (from CLAUDE.md)
 
@@ -105,10 +105,13 @@ Settled up front so later phases don't churn on foundational choices:
 - ✅ A visual loop-region overlay on the timeline ruler/lanes, and loop enable/start/end controls in the transport bar ([timeline.js](../src/js/ui/timeline.md)).
 - ❌ Not done: punch in/out recording (no capture source exists — same reason transport `record` was skipped in Phase 4) and an arrangement-level "blocks collapse to bars" view (deferred; the existing horizontal zoom already reaches down to a coarse bar-level look, just without dedicated section markers).
 
-## Phase 9 — Persistence & Export
+## Phase 9 — Persistence & Export ✅
 
-- Save/load project state (IndexedDB primary, JSON export/import for portability).
-- Offline render/export to audio file (e.g., WAV) via `OfflineAudioContext`.
+- Save/load: [project.js](../src/js/core/project.md) mutators now emit `project:changed`; [persistence.js](../src/js/core/persistence.md) debounce-autosaves to IndexedDB (~800ms after the last change) and loads it back on startup. JSON export/import via [projectControls.js](../src/js/ui/projectControls.md).
+- **Real bug found and fixed along the way:** the "IDs are a simple incrementing counter" limitation flagged since Phase 4 stopped being theoretical once save/load and import were real — `syncIdCounter()` now scans loaded/imported data and advances the counter past the highest id seen, verified to prevent collisions (a crafted `track-999` import correctly forced the next new track to `track-1000+`, not `track-1`).
+- Offline render/export to WAV via `OfflineAudioContext`: [exportRender.js](../src/js/audio/exportRender.md) stands up a second synth engine + mixer against an offline context (reusing every DSP module unmodified, since none of them hardcode a global `AudioContext`) and [wavEncoder.js](../src/js/audio/wavEncoder.md) encodes the result as 16-bit PCM WAV. Verified in-browser: rendered a real, non-silent, correctly-timed buffer, and the WAV header/data-size math checked out byte-for-byte.
+- Import/New Project also call `resetMixer()` ([audioEngine.js](../src/js/audio/audioEngine.md)) since old tracks' mixer buses have no relationship to a wholesale-replaced project's tracks — full teardown/rebuild rather than reconciliation, same pattern as the Phase 6 track-removal leak fix.
+- **Deviation:** single autosave slot only (no named/multiple saved projects, no version history) — matches the app's current single-project scope; add a project browser if that becomes a real need.
 
 ## Phase 10 — Responsive & Touch Polish
 

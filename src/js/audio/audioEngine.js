@@ -2,6 +2,7 @@ import { bus } from "../core/eventBus.js";
 import { createSynthEngine } from "./synthEngine.js";
 import { createDefaultPatch } from "./patch.js";
 import { createMixer } from "./mixer.js";
+import { getSelectedTrack } from "../core/selection.js";
 
 const DEFAULT_VELOCITY = 100;
 
@@ -11,7 +12,7 @@ let synthEngine = null;
 let mixer = null;
 let project = null;
 let mixerSyncQueued = false;
-let currentPatch = createDefaultPatch();
+const fallbackPatch = createDefaultPatch();
 
 function syncMixer() {
   mixerSyncQueued = false;
@@ -34,7 +35,6 @@ function ensureContext() {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     masterGain = audioContext.createGain();
     synthEngine = createSynthEngine(audioContext, masterGain);
-    synthEngine.setPatch(currentPatch);
     mixer = createMixer(audioContext, masterGain); // routes masterGain -> master effect chain -> destination
     syncMixer();
   }
@@ -44,9 +44,16 @@ function ensureContext() {
   return audioContext;
 }
 
+// Live input (MIDI, computer keyboard, piano-roll previews) plays the selected track's
+// instrument through that track's mixer bus, so it sounds exactly like the track's playback.
 function handleNoteOn({ note, velocity = DEFAULT_VELOCITY }) {
   ensureContext();
-  synthEngine.noteOn(note, velocity);
+  const track = project ? getSelectedTrack(project) : null;
+  if (track) {
+    synthEngine.noteOn(note, velocity, track.patch, mixer.getTrackBus(track.id).gainNode);
+  } else {
+    synthEngine.noteOn(note, velocity, fallbackPatch);
+  }
 }
 
 function handleNoteOff({ note }) {
@@ -75,18 +82,9 @@ export function getMasterGain() {
   return masterGain;
 }
 
-export function getPatch() {
-  return currentPatch;
-}
-
-export function setPatch(nextPatch) {
-  currentPatch = nextPatch;
-  synthEngine?.setPatch(currentPatch);
-}
-
-export function scheduleNote(note, velocity, startTime, durationSeconds, destinationNode) {
+export function scheduleNote(note, velocity, startTime, durationSeconds, patch, destinationNode) {
   ensureContext();
-  synthEngine.scheduleNote(note, velocity, startTime, durationSeconds, destinationNode);
+  synthEngine.scheduleNote(note, velocity, startTime, durationSeconds, patch, destinationNode);
 }
 
 export function cancelScheduledNotes() {

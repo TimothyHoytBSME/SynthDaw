@@ -43,6 +43,7 @@ function scheduleProjectNotes(windowStart, windowEnd, beatToContextTime) {
         playable.velocity,
         beatToContextTime(playable.startBeat),
         beatsToSeconds(playable.lengthBeats, tempo),
+        playable.track.patch,
         mixer.getTrackBus(playable.track.id).gainNode,
       );
     }

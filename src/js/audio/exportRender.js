@@ -19,7 +19,7 @@ function projectEndBeat(project) {
 // (synthEngine.js, mixer.js, effectChain.js, effects/*) takes its AudioContext as a parameter
 // rather than reaching for a global, specifically so this kind of parallel offline graph is
 // possible without duplicating any DSP code.
-export async function renderProjectToBuffer(project, patch) {
+export async function renderProjectToBuffer(project) {
   const secondsPerBeat = 60 / project.tempo;
   const durationSeconds = Math.max(
     MIN_DURATION_SECONDS,
@@ -37,7 +37,6 @@ export async function renderProjectToBuffer(project, patch) {
   mixer.syncProject(project);
 
   const synthEngine = createSynthEngine(offlineContext, masterGain);
-  synthEngine.setPatch(patch);
 
   for (const playable of playableNotes(project)) {
     synthEngine.scheduleNote(
@@ -45,6 +44,7 @@ export async function renderProjectToBuffer(project, patch) {
       playable.velocity,
       playable.startBeat * secondsPerBeat,
       playable.lengthBeats * secondsPerBeat,
+      playable.track.patch,
       mixer.getTrackBus(playable.track.id).gainNode,
     );
   }

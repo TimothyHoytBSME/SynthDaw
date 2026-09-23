@@ -13,6 +13,7 @@ import {
 import { getTransport, setMetronomeEnabled, isMetronomeEnabled } from "../core/transportController.js";
 import { renderPianoRoll } from "./pianoRoll.js";
 import { bus } from "../core/eventBus.js";
+import { getSelectedTrack, selectTrack } from "../core/selection.js";
 
 const MIN_PIXELS_PER_BEAT = 10;
 const MAX_PIXELS_PER_BEAT = 120;
@@ -302,6 +303,8 @@ export function renderTimeline(container, project) {
 
       const header = document.createElement("div");
       header.className = "timeline-track-header";
+      header.classList.toggle("timeline-track-header--selected", track === getSelectedTrack(project));
+      header.addEventListener("click", () => selectTrack(track.id));
 
       const nameSpan = document.createElement("span");
       nameSpan.textContent = track.name;
@@ -311,7 +314,8 @@ export function renderTimeline(container, project) {
       removeTrackButton.type = "button";
       removeTrackButton.className = "timeline-track-remove";
       removeTrackButton.textContent = "×";
-      removeTrackButton.addEventListener("click", () => {
+      removeTrackButton.addEventListener("click", (event) => {
+        event.stopPropagation();
         removeTrack(project, track.id);
         renderTracks();
         bus.emit("project:tracks-changed", {});
@@ -416,5 +420,9 @@ export function renderTimeline(container, project) {
   renderLoopRegion();
   animationFrame = requestAnimationFrame(updatePlayheadLoop);
 
-  return () => cancelAnimationFrame(animationFrame);
+  const unsubscribeSelection = bus.on("selection:changed", renderTracks);
+  return () => {
+    cancelAnimationFrame(animationFrame);
+    unsubscribeSelection();
+  };
 }

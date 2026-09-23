@@ -1,4 +1,5 @@
 import { bus } from "./eventBus.js";
+import { createDefaultPatch, normalizePatch, clonePatch } from "../audio/patch.js";
 
 let idCounter = 0;
 
@@ -26,7 +27,15 @@ export function createProject() {
 }
 
 function createTrackDefaults() {
-  return { blocks: [], volume: 1, pan: 0, muted: false, soloed: false, effects: [] };
+  return {
+    blocks: [],
+    volume: 1,
+    pan: 0,
+    muted: false,
+    soloed: false,
+    effects: [],
+    patch: createDefaultPatch(),
+  };
 }
 
 // Fills in any field missing from project data that came from outside this session (an older
@@ -40,6 +49,7 @@ export function normalizeProject(project) {
   project.tracks ??= [];
   project.tracks.forEach((track, index) => {
     Object.assign(track, { ...createTrackDefaults(), name: `Track ${index + 1}`, ...track });
+    track.patch = normalizePatch(track.patch);
     for (const block of track.blocks) {
       block.notes ??= [];
       for (const note of block.notes) {
@@ -59,6 +69,26 @@ export function addTrack(project, { name } = {}) {
   project.tracks.push(track);
   notifyChanged();
   return track;
+}
+
+export function renameTrack(track, name) {
+  const trimmed = name.trim();
+  if (trimmed) {
+    setIfChanged(track, "name", trimmed);
+  }
+}
+
+export function setTrackPatch(track, patch) {
+  track.patch = clonePatch(patch);
+  notifyChanged();
+}
+
+// `path` is a dotted path into the patch, e.g. "filter.cutoff" or "oscillators.1.detune".
+export function setTrackPatchParam(track, path, value) {
+  const keys = path.split(".");
+  const lastKey = keys.pop();
+  const target = keys.reduce((object, key) => object[key], track.patch);
+  setIfChanged(target, lastKey, value);
 }
 
 export function removeTrack(project, trackId) {

@@ -1,13 +1,14 @@
 import { createVoice } from "./voice.js";
 
 const MAX_VOICES = 8;
-const STEAL_RELEASE = true;
 
-export function createSynthEngine(audioContext, destination) {
-  let patch = null;
+// Every note carries its own patch and destination (per-track instruments), so this engine
+// holds no patch of its own — only live-voice bookkeeping and the scheduled-voice registry.
+export function createSynthEngine(audioContext, defaultDestination) {
   const activeVoices = new Map();
   const scheduledVoices = new Set();
   let voiceOrder = 0;
+  let bendCents = 0;
 
   function stealOldestVoice() {
     let oldestNote = null;
@@ -19,26 +20,20 @@ export function createSynthEngine(audioContext, destination) {
       }
     }
     if (oldestNote !== null) {
-      activeVoices.get(oldestNote).voice.stop(STEAL_RELEASE);
+      activeVoices.get(oldestNote).voice.stop(true);
       activeVoices.delete(oldestNote);
     }
   }
 
   return {
-    setPatch(nextPatch) {
-      patch = nextPatch;
-    },
-    noteOn(note, velocity) {
-      if (!patch) {
-        return;
-      }
+    noteOn(note, velocity, patch, destination = defaultDestination) {
       if (activeVoices.has(note)) {
-        activeVoices.get(note).voice.stop(STEAL_RELEASE);
+        activeVoices.get(note).voice.stop(true);
         activeVoices.delete(note);
       } else if (activeVoices.size >= MAX_VOICES) {
         stealOldestVoice();
       }
-      const voice = createVoice(audioContext, destination, note, velocity, patch);
+      const voice = createVoice(audioContext, destination, note, velocity, patch, bendCents);
       voice.start();
       activeVoices.set(note, { voice, order: voiceOrder++ });
     },
@@ -50,14 +45,19 @@ export function createSynthEngine(audioContext, destination) {
       record.voice.stop(false);
       activeVoices.delete(note);
     },
+    // Applies to live voices only (sounding and future): pitch bend is a performance gesture,
+    // not something sequenced playback should inherit.
+    setPitchBend(cents) {
+      bendCents = cents;
+      for (const { voice } of activeVoices.values()) {
+        voice.setBend(cents);
+      }
+    },
     // Pre-scheduled playback (sequencer): start+stop are both scheduled up front at exact
     // future AudioContext times, entirely separate from the live activeVoices/stealing pool
     // above (a sequenced note is never live-retriggered or stolen mid-playback).
-    scheduleNote(note, velocity, startTime, durationSeconds, destinationOverride) {
-      if (!patch) {
-        return;
-      }
-      const voice = createVoice(audioContext, destinationOverride ?? destination, note, velocity, patch);
+    scheduleNote(note, velocity, startTime, durationSeconds, patch, destination = defaultDestination) {
+      const voice = createVoice(audioContext, destination, note, velocity, patch);
       voice.start(startTime);
       voice.stop(false, startTime + durationSeconds);
       scheduledVoices.add(voice);

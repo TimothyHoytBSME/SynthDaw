@@ -1,4 +1,4 @@
-import { initAudioEngine, attachProject, getPatch, setPatch } from "./audio/audioEngine.js";
+import { initAudioEngine, attachProject } from "./audio/audioEngine.js";
 import { initMIDIInput } from "./midi/midiInput.js";
 import { createProject, addTrack, syncIdCounter, normalizeProject } from "./core/project.js";
 import { setProject, initTransportController } from "./core/transportController.js";
@@ -16,7 +16,6 @@ async function init() {
   initAudioEngine();
   renderPianoTrigger(document.getElementById("piano-trigger"));
   renderMIDIStatus(document.getElementById("midi-status"));
-  renderPatchEditor(document.getElementById("patch-editor"), { getPatch, setPatch });
   initMIDIInput();
 
   let project;
@@ -38,15 +37,21 @@ async function init() {
 
   const timelineContainer = document.getElementById("timeline");
   const mixerContainer = document.getElementById("mixer");
+  const patchEditorContainer = document.getElementById("patch-editor");
   let disposers = [];
 
   // Full re-render, used at startup and whenever the project is replaced wholesale (New,
   // Import, undo/redo). Each view returns a disposer so re-rendering never stacks listeners.
   function renderProjectUI() {
     disposers.forEach((dispose) => dispose());
-    timelineContainer.innerHTML = "";
-    mixerContainer.innerHTML = "";
-    disposers = [renderTimeline(timelineContainer, project), renderMixer(mixerContainer, project)];
+    for (const container of [timelineContainer, mixerContainer, patchEditorContainer]) {
+      container.innerHTML = "";
+    }
+    disposers = [
+      renderTimeline(timelineContainer, project),
+      renderPatchEditor(patchEditorContainer, project),
+      renderMixer(mixerContainer, project),
+    ];
   }
 
   renderProjectUI();

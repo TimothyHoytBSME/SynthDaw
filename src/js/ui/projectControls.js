@@ -6,7 +6,6 @@ import {
   createProject,
   addTrack,
 } from "../core/project.js";
-import { getPatch } from "../audio/audioEngine.js";
 import { renderProjectToBuffer } from "../audio/exportRender.js";
 import { audioBufferToWavBlob } from "../audio/wavEncoder.js";
 import { undo, redo, canUndo, canRedo } from "../core/history.js";
@@ -67,7 +66,7 @@ export function renderProjectControls(container, project, onReplaced) {
     exportWavButton.disabled = true;
     exportWavButton.textContent = "Rendering…";
     try {
-      const audioBuffer = await renderProjectToBuffer(project, getPatch());
+      const audioBuffer = await renderProjectToBuffer(project);
       downloadBlob(audioBufferToWavBlob(audioBuffer), WAV_FILENAME);
     } catch (error) {
       window.alert(`Could not render audio: ${error.message}`);

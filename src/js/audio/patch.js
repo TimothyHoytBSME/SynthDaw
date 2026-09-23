@@ -1,12 +1,17 @@
+export const OSC_TYPES = ["sine", "sawtooth", "square", "triangle"];
+export const FILTER_TYPES = ["lowpass", "highpass", "bandpass", "notch"];
+export const LFO_TARGETS = ["pitch", "filter", "amp"];
+
 export function createDefaultPatch() {
   return {
     oscillators: [
-      { type: "sawtooth", detune: 0, mix: 0.7 },
-      { type: "square", detune: -7, mix: 0.3 },
+      { type: "sawtooth", octave: 0, detune: 0, mix: 0.7 },
+      { type: "square", octave: 0, detune: -7, mix: 0.3 },
     ],
     filter: { type: "lowpass", cutoff: 2200, resonance: 1, envAmount: 1800 },
     ampEnvelope: { attack: 0.01, decay: 0.18, sustain: 0.65, release: 0.25 },
     filterEnvelope: { attack: 0.01, decay: 0.25, sustain: 0.3, release: 0.3 },
+    // depth is a normalized 0–1 amount; voice.js scales it per target (cents, Hz, or gain).
     lfo: { rate: 5, depth: 0, target: "pitch" },
     gain: 0.7,
   };
@@ -16,10 +21,22 @@ export function clonePatch(patch) {
   return JSON.parse(JSON.stringify(patch));
 }
 
-export function serializePatch(patch) {
-  return JSON.stringify(patch);
+function mergeDefaults(defaults, value) {
+  if (Array.isArray(defaults)) {
+    return defaults.map((item, index) => mergeDefaults(item, value?.[index]));
+  }
+  if (defaults !== null && typeof defaults === "object") {
+    const merged = {};
+    for (const key of Object.keys(defaults)) {
+      merged[key] = mergeDefaults(defaults[key], value?.[key]);
+    }
+    return merged;
+  }
+  return value ?? defaults;
 }
 
-export function parsePatch(json) {
-  return JSON.parse(json);
+// Returns a complete patch: any field missing from `patch` (older saves, partial presets)
+// takes the default, and unknown fields are dropped.
+export function normalizePatch(patch) {
+  return mergeDefaults(createDefaultPatch(), patch);
 }

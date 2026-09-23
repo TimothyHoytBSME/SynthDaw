@@ -1,5 +1,9 @@
 # patchEditor.js
 
-Minimal live patch-editing UI: a config-driven list (`FIELDS`) of `{ path, label, kind, ... }` descriptors, each rendered as a `<select>` or `<input type="range">` bound via dot-path get/set (`getByPath`/`setByPath`) into a local working copy of the [patch](../audio/patch.md). On every `input` event it clones the working patch and calls `setPatch()`, so changes apply live to the next note played (not retroactively to already-sounding notes — see [synthEngine.js](../audio/synthEngine.md)).
+The "Instrument" panel: edits the **selected track's** patch ([selection.js](../core/selection.md)). It re-renders when the selected track changes or on `project:tracks-changed`, and `renderPatchEditor(container, project)` returns a disposer.
 
-This exists to make every Phase 3 synth parameter audibly verifiable without editing code; it is intentionally not a polished patch browser/preset UI (save/load, patch names, visual knobs) — that's deferred to a later polish pass once there's more than one patch to manage.
+- Config-driven: `PATCH_SECTIONS` (Oscillator 1/2, Filter, Amp envelope, Filter envelope, LFO, Output) lists each field's `path` into the patch, its range and a formatter. Every slider shows a live value readout (Hz/kHz, ms/s, %, cents).
+- `scale: "log"` fields (cutoff, envelope times, LFO rate) map the slider exponentially. Sliders run 0–1000 internally, and `valueFromNormalized`/`normalizedFromValue` convert. `valueFromNormalized` is exported because MIDI CC mapping reuses it (a CC value is just a normalized slider position).
+- Every edit calls [project.js](../core/project.md)'s `setTrackPatchParam(track, path, value)`, so edits are saved and undoable (a drag coalesces into one undo step). New notes pick up the change, and already-sounding voices keep their patch.
+- The preset dropdown ([presets.js](../audio/presets.md)) replaces the whole patch via `setTrackPatch`.
+- `controls` maps `path -> { field, setValue }` so external changes (MIDI learn) can move the matching slider.

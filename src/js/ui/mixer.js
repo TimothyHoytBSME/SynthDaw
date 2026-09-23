@@ -1,4 +1,5 @@
 import { bus } from "../core/eventBus.js";
+import { getSelectedTrack, selectTrack } from "../core/selection.js";
 import { EFFECT_TYPES, defaultParamsFor } from "../audio/effectTypes.js";
 import {
   setTrackVolume,
@@ -91,13 +92,16 @@ function renderEffectsSection(container, effectsOwner) {
   }
 }
 
-function renderTrackStrip(track) {
+function renderTrackStrip(track, selected) {
   const strip = document.createElement("div");
-  strip.className = "mixer-strip";
+  strip.className = `mixer-strip${selected ? " mixer-strip--selected" : ""}`;
 
-  const name = document.createElement("div");
+  const name = document.createElement("button");
+  name.type = "button";
   name.className = "mixer-strip-name";
+  name.title = "Select track";
   name.textContent = track.name;
+  name.addEventListener("click", () => selectTrack(track.id));
   strip.appendChild(name);
 
   const volumeLabel = document.createElement("label");
@@ -200,14 +204,27 @@ export function renderMixer(container, project) {
     container.innerHTML = "";
     const strips = document.createElement("div");
     strips.className = "mixer-strips";
+    const selectedTrack = getSelectedTrack(project);
     for (const track of project.tracks) {
-      strips.appendChild(renderTrackStrip(track));
+      strips.appendChild(renderTrackStrip(track, track === selectedTrack));
     }
     strips.appendChild(renderMasterStrip(project));
     container.appendChild(strips);
   }
 
-  const unsubscribe = bus.on("project:tracks-changed", render);
+  // Selection only changes a highlight class, so it's patched in place rather than re-rendering
+  // (which would reset every strip's scroll position and slider focus).
+  function highlightSelected() {
+    const selectedIndex = project.tracks.indexOf(getSelectedTrack(project));
+    container.querySelectorAll(".mixer-strip:not(.mixer-strip--master)").forEach((strip, index) => {
+      strip.classList.toggle("mixer-strip--selected", index === selectedIndex);
+    });
+  }
+
+  const unsubscribers = [
+    bus.on("project:tracks-changed", render),
+    bus.on("selection:changed", highlightSelected),
+  ];
   render();
-  return unsubscribe;
+  return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
 }

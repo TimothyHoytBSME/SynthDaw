@@ -291,6 +291,11 @@ main {
   color: #ffb35b;
 }
 
+.transport-bar .transport-record--active {
+  background: #b0472f;
+  border-color: #ff7a5b;
+}
+
 .transport-position {
   font-family: ui-monospace, monospace;
   font-size: 0.95rem;
@@ -514,6 +519,7 @@ main {
 
 .mixer-effect-add select {
   flex: 1;
+  min-height: 32px;
   font-size: 0.65rem;
   background: #101216;
   color: var(--fg);
@@ -522,6 +528,7 @@ main {
 }
 
 .mixer-effect-add button {
+  min-height: 32px;
   font-size: 0.65rem;
   background: #2a2d35;
   color: var(--fg);
@@ -653,6 +660,31 @@ main {
   flex: 1;
   min-width: 0;
   accent-color: var(--accent);
+}
+
+.patch-learn {
+  flex: 0 0 auto;
+  min-width: 2.6rem;
+  min-height: 24px;
+  padding: 0 0.25rem;
+  font-size: 0.6rem;
+  font-family: ui-monospace, monospace;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid #3a3d46;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.patch-learn--mapped {
+  color: #9fe0b0;
+  border-color: #3f7a52;
+}
+
+.patch-learn--learning {
+  color: #fff;
+  background: #b0472f;
+  border-color: #ff7a5b;
 }
 
 .patch-readout {
@@ -826,4 +858,11 @@ main {
   border-radius: 2px 2px 0 0;
   cursor: ns-resize;
   touch-action: none;
+}
+
+/* Touch-only devices have no computer keyboard to play notes with. */
+@media (hover: none) and (pointer: coarse) {
+  #keyboard-status {
+    display: none;
+  }
 }

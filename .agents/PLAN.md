@@ -2,7 +2,7 @@
 
 High-level phased roadmap. Each phase should be broken into scoped tasks (and git commits) at implementation time — this file stays high-level. Update the "Status" line as phases start/finish, and log notable milestones in [LOG.md](LOG.md).
 
-**Status: Phases 0–6, 9, and 10 complete. Phase 8 (looping) and Phase 12 (undo/redo + shortcuts) partially complete. A second full review (2026-09-22, see "Second review" below) found correctness bugs and major usability gaps; Phases 13–17 were added to fix them and are the current work. Phase 7 and the remaining Phase 8/12 items are now in the Backlog. Phase 11 (cross-platform validation) is on hold indefinitely per explicit instruction — this environment can't test Linux/Android/other-device Chrome anyway, and it's not blocking use of the app on the one platform (Windows Chrome) that can be tested here.**
+**Status: Phases 0–6, 9, and 10 complete. Phase 8 (looping) and Phase 12 (undo/redo + shortcuts) partially complete. A second full review (2026-09-22, see "Second review" below) found correctness bugs and major usability gaps; Phases 13–17 were added to fix them and are complete. Phase 7 and the remaining Phase 8/12 items are now in the Backlog. Phase 11 (cross-platform validation) is on hold indefinitely per explicit instruction — this environment can't test Linux/Android/other-device Chrome anyway, and it's not blocking use of the app on the one platform (Windows Chrome) that can be tested here.**
 
 ## Guiding constraints (from CLAUDE.md)
 
@@ -166,7 +166,7 @@ A full read of every source file plus the running app. Phases 1–12 built a lot
 - The patch editor is a flat list of 21 unlabeled sliders with no value readouts and no presets. Osc 1 detune isn't exposed, and LFO depth uses one 0–50 range for both "cents" and "Hz", which makes the filter target useless.
 - The visual on-screen piano at the bottom of the page is redundant now that there's a piano roll and MIDI (removal requested).
 
-### Phase 13 — Correctness & model/audio sync
+### Phase 13 — Correctness & model/audio sync ✅
 
 - **The audio follows the model, from one place.** `audioEngine.js` attaches to the project and re-syncs the mixer on `project:changed`, coalesced per microtask. `mixer.syncProject(project)` reconciles buses by track id (creates, updates, disposes) and effect chains by effect id/type (it rebuilds only when the chain's structure changes; otherwise it applies param and bypass diffs through `setParam`). Remove the scattered `getMixer().sync*` calls in the UI, `resetMixer()`, and the `track:removed` event. Fixes #1, #2.
 - **Transport follows the model too.** `transportController.js` syncs tempo, loop and beats-per-bar from the project on attach and on every change. New `setTempo`/`setBeatsPerBar` mutators in `project.js`. Fixes #3.
@@ -176,14 +176,14 @@ A full read of every source file plus the running app. Phases 1–12 built a lot
 - The sequencer and WAV export clip notes to their block's bounds. Fixes #7.
 - `renderTimeline`/`renderMixer` return a `dispose()` that unsubscribes and cancels rAF; `main.js` disposes before it re-renders. Fixes #8.
 
-### Phase 14 — Per-track instruments & live input routing
+### Phase 14 — Per-track instruments & live input routing ✅
 
 - Each track owns a `patch` (plain JSON, persisted, undoable, exported). `synthEngine` takes the patch per note instead of holding a global one. Export WAV renders each track with its own patch. Fixes #4.
 - A **selected track** (`core/selection.js`, UI state, not persisted). Clicking a track header selects it. Live input (MIDI + computer keyboard + piano-roll previews) plays through the selected track's patch *and* its mixer bus, so live notes get that track's effects/volume/pan. Resolves the Phase 5/6 deviation.
 - The patch editor edits the selected track's patch. It's organized into sections (Oscillators, Filter, Amp envelope, Filter envelope, LFO, Output), with a live value readout on every slider. Adds Osc 1 detune and a per-oscillator octave (−3…+3). LFO depth becomes a normalized 0–1 amount that the voice scales per target (pitch → cents, filter → Hz, amp → tremolo), and a new **amp** target (tremolo) is added.
 - Built-in presets (`audio/presets.js`): a handful of from-scratch starting points (init, lead, pad, pluck, bass, keys) in a dropdown. Loading one replaces the track's patch and is undoable.
 
-### Phase 15 — Timeline editing essentials
+### Phase 15 — Timeline editing essentials ✅
 
 - **Remove the on-screen piano** (explicit request). Computer-keyboard note input stays, since it's the only instrument when no MIDI device is connected. It moves to `ui/computerKeyboard.js`, gains Z/X octave shift, and ignores keys while typing in a field or with modifier keys held (fixes #9).
 - **Block selection** (click). A selected-block toolbar offers Edit notes (touch-friendly alternative to double-click), Duplicate, Delete, **Transpose by X octaves up/down** (numeric octave count + ▲/▼), and ±1 semitone. Transposition is all-or-nothing: if any note would leave MIDI range 0–127, nothing changes and the toolbar says why. Keyboard: Delete/Backspace, Ctrl/Cmd+D, ↑/↓ (semitone), Shift+↑/↓ (octave), Esc (deselect).
@@ -192,9 +192,10 @@ A full read of every source file plus the running app. Phases 1–12 built a lot
 - Click the ruler to seek; the ruler shows beat ticks as well as bar numbers.
 - Double-click a track name to rename it. The selected track is highlighted.
 - Timeline length grows with content (always at least 8 bars past the last block, minimum 32).
+- **Changed interaction:** a *double*-click on an empty lane adds a block. A single click now selects the track and deselects the block, since single-click-to-add made every stray click create a block. The inline block "×" is gone too: use the toolbar or the Delete key.
 - Transport UI split out of `timeline.js` into `ui/transportBar.js`, and the selected-block toolbar into `ui/blockToolbar.js`, to keep files focused.
 
-### Phase 16 — Piano roll upgrade
+### Phase 16 — Piano roll upgrade ✅
 
 - Full MIDI range (0–127), auto-scrolled on open to the block's notes (or middle C when empty). Black-key rows are shaded in the grid.
 - Drag notes vertically to change pitch, previewing each new pitch as you go. Notes stay clamped inside the block.
@@ -204,11 +205,13 @@ A full read of every source file plus the running app. Phases 1–12 built a lot
 - Content beyond the block's end (after shrinking a block) is shown shaded, not deleted. It doesn't play, per #7.
 - The piano roll stays open across undo/redo (it reopens on the same block id if it still exists).
 
-### Phase 17 — MIDI performance: record, pitch bend, CC learn
+### Phase 17 — MIDI performance: record, pitch bend, CC learn ✅
 
 - **Record**: a transport Record button that plays and captures live notes (MIDI/computer keyboard) on the selected track. On stop, the take becomes a new block, bar-aligned around the played notes, with optional quantize-to-grid. Loop recording layers takes into the loop region.
 - **Pitch bend** applied to live voices (±2 semitones). New voices start at the current bend.
 - **MIDI learn** for patch parameters: click a slider's "learn" button, move a controller knob/slider, and that CC now drives the parameter (scaled to the slider's range) on whatever track is selected. The mappings describe the user's hardware, not a project, so they persist in `localStorage` (`core/midiMap.js`) and not in the project.
+
+**Also done during 13–17:** `tools/devServer.py` (a no-cache static server) replaces the port-bumping workaround for stale modules. The piano roll's notes delete by double-click/right-click instead of an inline button. The mixer's add-effect controls got the touch-size fix Phase 10 missed. Undo/redo keeps the timeline zoom and the open piano roll.
 
 ### Backlog (not in the current pass)
 
@@ -219,6 +222,8 @@ A full read of every source file plus the running app. Phases 1–12 built a lot
 - Arrangement markers/sections, playhead auto-follow scroll, pinch-to-zoom.
 - Theming, onboarding/first-run help, multiple named saved projects.
 - Recording latency compensation, count-in.
+- Velocity-lane access to stacked chord notes (needs note selection).
+- Compact transport/toolbars on phone widths (they wrap correctly but use a lot of vertical space).
 - Phase 11 (cross-platform/perf/a11y), still on hold.
 
 ## Ongoing, every phase

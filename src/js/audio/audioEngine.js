@@ -5,6 +5,8 @@ import { createMixer } from "./mixer.js";
 import { getSelectedTrack } from "../core/selection.js";
 
 const DEFAULT_VELOCITY = 100;
+const PITCH_BEND_RANGE_CENTS = 200; // ±2 semitones, the common synth default
+const PITCH_BEND_HALF_RANGE = 8192; // 14-bit MIDI pitch bend is centred on 8192
 
 let audioContext = null;
 let masterGain = null;
@@ -60,9 +62,15 @@ function handleNoteOff({ note }) {
   synthEngine?.noteOff(note);
 }
 
+function handlePitchBend({ value }) {
+  ensureContext();
+  synthEngine.setPitchBend((value / PITCH_BEND_HALF_RANGE) * PITCH_BEND_RANGE_CENTS);
+}
+
 export function initAudioEngine() {
   bus.on("note:on", handleNoteOn);
   bus.on("note:off", handleNoteOff);
+  bus.on("midi:pitchbend", handlePitchBend);
   bus.on("project:changed", queueMixerSync);
 }
 

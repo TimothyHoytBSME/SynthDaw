@@ -1,5 +1,13 @@
 import { setLoopEnabled, setLoopRange, setTempo, setBeatsPerBar, MIN_TEMPO, MAX_TEMPO } from "../core/project.js";
 import { getTransport, setMetronomeEnabled, isMetronomeEnabled } from "../core/transportController.js";
+import { bus } from "../core/eventBus.js";
+import {
+  startRecording,
+  stopRecording,
+  isRecording,
+  setQuantizeTakes,
+  isQuantizingTakes,
+} from "../core/recorder.js";
 
 function button(label, title) {
   const element = document.createElement("button");
@@ -43,14 +51,35 @@ export function formatPosition(beat, beatsPerBar) {
 
 // Transport + global timing controls. `onLayoutChange` is called after edits that change how
 // the timeline must be drawn (beats-per-bar, loop range). `onTransportAction` after play/pause/
-// stop, so the timeline can sync its playhead immediately. Returns `{ element, setPosition }`.
-export function createTransportBar(project, { onLayoutChange, onTransportAction, extraControls = [] }) {
+// stop, so the timeline can sync its playhead immediately.
+// Returns `{ element, setPosition, dispose }`.
+export function createTransportBar(project, { onLayoutChange, onTransportAction }) {
   const bar = document.createElement("div");
   bar.className = "transport-bar";
 
   const playButton = button("▶ Play", "Play (Space)");
   const pauseButton = button("⏸ Pause", "Pause (Space)");
   const stopButton = button("⏹ Stop", "Stop and rewind");
+  const recordButton = button("● Rec", "Record live MIDI/keyboard input onto the selected track");
+  recordButton.classList.add("transport-record");
+  const quantize = checkboxField("Quantize", isQuantizingTakes());
+  quantize.label.title = "Snap recorded notes to 1/4 beat";
+  quantize.input.addEventListener("change", () => setQuantizeTakes(quantize.input.checked));
+
+  function showRecording() {
+    recordButton.classList.toggle("transport-record--active", isRecording());
+    recordButton.textContent = isRecording() ? "■ Stop rec" : "● Rec";
+  }
+  recordButton.addEventListener("click", () => {
+    if (isRecording()) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+    onTransportAction();
+  });
+  const unsubscribeRecorder = bus.on("recorder:changed", showRecording);
+  showRecording();
 
   const position = document.createElement("output");
   position.className = "transport-position";
@@ -124,7 +153,8 @@ export function createTransportBar(project, { onLayoutChange, onTransportAction,
     playButton,
     pauseButton,
     stopButton,
-    ...extraControls,
+    recordButton,
+    quantize.label,
     position,
     tempo.label,
     beatsPerBar.label,
@@ -137,5 +167,6 @@ export function createTransportBar(project, { onLayoutChange, onTransportAction,
     setPosition(beat) {
       position.textContent = formatPosition(beat, project.timeSignature.beatsPerBar);
     },
+    dispose: unsubscribeRecorder,
   };
 }

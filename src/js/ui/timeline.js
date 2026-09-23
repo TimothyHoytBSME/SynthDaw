@@ -482,6 +482,7 @@ export function renderTimeline(container, project) {
 
   return () => {
     cancelAnimationFrame(animationFrame);
+    transportBar.dispose();
     blockToolbar.dispose();
     unsubscribers.forEach((unsubscribe) => unsubscribe());
   };

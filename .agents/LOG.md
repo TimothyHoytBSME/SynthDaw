@@ -107,4 +107,41 @@ Chronological history of notable actions taken by any agent in this project. App
 - Agent/Model: Claude Sonnet 5
 - What: Marked Phase 11 (cross-platform validation & performance) on hold indefinitely in `PLAN.md`, per explicit instruction. No code changes.
 - Why: This environment can't test Chrome/Linux or Chrome/Android (no such devices available), and the app is fully usable/testable on Chrome/Windows without it — holding it isn't a blocker for anything else in the plan.
-- Commit(s): (pending)
+- Commit(s): 94bc679
+
+### 2026-09-22 — Second full review and plan update (Phases 13–17)
+- Agent/Model: Claude Opus 5.5
+- What: Read every source file plus the running app. Found 9 concrete correctness bugs, including saved mixer state never reaching the audio graph, effect sliders rebuilding whole chains per input event, tempo edits bypassing the model (non-undoable, never applied on load), the synth patch not being saved at all, Stop not silencing scheduled notes, Pause→Play restarting loops, and re-renders leaking listeners/rAF loops. Also found major usability gaps. Rewrote `PLAN.md` with a "Second review" section, new Phases 13–17 and a Backlog (Phase 7 and the remaining 8/12 items moved there).
+- Why: The user asked for a thorough review and plan update, including two explicit requests: remove the on-screen piano, and transpose a block by X octaves.
+- Commit(s): aa6974a
+
+### 2026-09-22 — Phase 13: correctness and model-driven sync
+- Agent/Model: Claude Opus 5.5
+- What: The audio graph and transport now *follow the project*. `mixer.syncProject` reconciles buses and effect chains after every `project:changed` (param/bypass diffs via `setParam`, rebuilding only on structural change), and `transportController` syncs tempo and loop. Added `setTempo`/`setBeatsPerBar`, `normalizeProject`, `playableNotes` (block-clipped notes shared by the sequencer and export), scheduled-voice cancellation on stop/pause/seek, `transport.seek`, and view disposers. Replaced the port-bumping cache workaround with `tools/devServer.py` (no-store headers).
+- Verified in-browser: saved track volume applied after reload (0.5); 20 effect-slider events created 0 new nodes; tempo 90 synced and undone back to 120; pause/resume inside a loop resumed at 2.64 beats; a note running past its block was clipped and a note after the block end was skipped; Stop silenced a 1s note within 250ms.
+- Commit(s): 8ae6754
+
+### 2026-09-22 — Phase 14: per-track instruments and live routing
+- Agent/Model: Claude Opus 5.5
+- What: `track.patch` per track (saved, undoable, exported). The synth engine takes the patch per note. Added a selected-track concept (`core/selection.js`); live input now plays the selected track's patch through its mixer bus (closing the Phase 5/6 deviation). Rebuilt the patch editor: sections, value readouts, log-scaled sliders, Osc 1 detune, per-oscillator octave, presets (`audio/presets.js`). LFO depth is normalized per target, with a new tremolo (amp) target implemented as a multiplying stage so it can't sound after release.
+- Verified in-browser: track 2 with the Sub Bass preset played its own patch (octave −1 = −1200 cents) via its own bus while track 1 was unchanged; the WAV export rendered per-track patches; old saves without patches were normalized.
+- Commit(s): 5335ed5
+
+### 2026-09-22 — Phase 15: timeline editing, piano removal, octave transpose
+- Agent/Model: Claude Opus 5.5
+- What: Removed the on-screen piano (requested); computer-keyboard input moved to `ui/computerKeyboard.js` (Z/X octave, ignores fields/modifiers). Block selection plus `ui/blockToolbar.js`: edit/duplicate/delete and **transpose by X octaves** (all-or-nothing within MIDI 0–127, with a message when refused) and ±1 semitone, all shared with shortcuts through `core/blockActions.js`. Blocks show a miniature of their notes and can be dragged between tracks. Also added ruler seek, a position readout, track rename, sticky headers, a growing timeline, and zoom/piano roll that survive undo. Split `ui/transportBar.js` out of `timeline.js`. **Interaction change:** double-click (not single click) on an empty lane adds a block.
+- Verified in-browser: +2/−4 octave transposes were exact, a 10-octave transpose was refused with notes untouched, ↑ and Shift+↑ gave +1 and +12, Ctrl+D duplicated and selected the copy, drag moved a block one bar right onto track 2, ruler seek went to beat 6, rename propagated to the mixer, Delete removed the block and closed its piano roll.
+- Commit(s): c9e2058
+
+### 2026-09-22 — Phase 16: piano roll upgrade
+- Agent/Model: Claude Opus 5.5
+- What: Full MIDI range with a clickable key column (auditioning replaces the removed piano); auto-centering on notes (also after a transpose); drag in time and pitch with preview; zoom plus snap (1 to 1/16); last-length note placement; velocity lane; double-click/right-click to delete; notes past the block end shown shaded.
+- Verified in-browser: a note moved +2 semitones/+1 beat with two pitch previews; velocity set to 32 via the lane; a new note's length was clamped to the block end; deletion and key preview worked; the timeline miniature updated.
+- Commit(s): 32addff
+
+### 2026-09-22 — Phase 17: record, pitch bend, MIDI learn
+- Agent/Model: Claude Opus 5.5
+- What: `core/recorder.js` records MIDI/computer-keyboard input on the selected track into a bar-aligned block (optional ¼-beat quantize; loop-wrap aware; held notes closed at Stop). Pitch bend is ±2 semitones on live voices. `midi/midiMap.js` plus per-slider learn buttons map CCs to patch parameters (localStorage, applied to the selected track with the slider's own log/linear scaling). Also: `+ Effect` touch-size fix, keyboard hint hidden on touch devices, README status updated.
+- Verified in-browser (MIDI permission is denied in the preview, so MIDI was simulated via bus events): a keyboard take with an octave shift and a note held through Stop became the expected quantized block; CC21 was learned and drove cutoff 40 Hz–16 kHz and persisted; an unmapped CC did nothing; pitch bend moved held oscillators +200 cents. The final regression on a fresh project (add block → piano-roll notes → preset + reverb → play → WAV export → JSON round-trip) produced no console errors; a 375px viewport had no horizontal overflow.
+- Commit(s): (this commit)
+

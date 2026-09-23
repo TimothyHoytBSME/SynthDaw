@@ -1,5 +1,7 @@
 import { initAudioEngine, attachProject } from "./audio/audioEngine.js";
 import { initMIDIInput } from "./midi/midiInput.js";
+import { initMIDIMap } from "./midi/midiMap.js";
+import { initRecorder } from "./core/recorder.js";
 import { createProject, addTrack, syncIdCounter, normalizeProject } from "./core/project.js";
 import { setProject, initTransportController } from "./core/transportController.js";
 import { loadProject, initAutosave } from "./core/persistence.js";
@@ -17,6 +19,7 @@ async function init() {
   initComputerKeyboard(document.getElementById("keyboard-status"));
   renderMIDIStatus(document.getElementById("midi-status"));
   initMIDIInput();
+  initMIDIMap();
 
   let project;
   try {
@@ -34,6 +37,7 @@ async function init() {
   attachProject(project);
   initTransportController();
   setProject(project);
+  initRecorder(project);
 
   const timelineContainer = document.getElementById("timeline");
   const mixerContainer = document.getElementById("mixer");

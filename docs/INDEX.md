@@ -50,3 +50,5 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/ui/transportBar.md](../src/js/ui/transportBar.md) | Companion doc for `src/js/ui/transportBar.js`, the play/tempo/loop/position bar. |
 | [src/js/ui/blockToolbar.md](../src/js/ui/blockToolbar.md) | Companion doc for `src/js/ui/blockToolbar.js`, selected-block actions (edit, duplicate, transpose by octaves, delete). |
 | [src/js/core/blockActions.md](../src/js/core/blockActions.md) | Companion doc for `src/js/core/blockActions.js`, selected-block operations shared by toolbar and shortcuts. |
+| [src/js/core/recorder.md](../src/js/core/recorder.md) | Companion doc for `src/js/core/recorder.js`, records live MIDI/keyboard input into a new block. |
+| [src/js/midi/midiMap.md](../src/js/midi/midiMap.md) | Companion doc for `src/js/midi/midiMap.js`, MIDI learn: CC to parameter mappings (localStorage). |

@@ -13,4 +13,6 @@ Vanilla HTML/CSS/JS (ES modules, no framework). No build step is required to run
 
 ## Status
 
-Project scaffolding only — no features implemented yet. See [.agents/PLAN.md](.agents/PLAN.md) for the phase currently in progress.
+Working DAW: tracks and blocks with a piano roll, a per-track 2-oscillator subtractive synth with presets, effects and a mixer, looping, recording from MIDI or the computer keyboard, MIDI learn and pitch bend, undo/redo, autosave, and JSON/WAV export. See [.agents/PLAN.md](.agents/PLAN.md) for phase status and the backlog.
+
+Run it with any static file server over `src/`, e.g. `python tools/devServer.py` and then open http://localhost:4329.

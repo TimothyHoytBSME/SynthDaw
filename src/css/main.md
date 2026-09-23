@@ -9,3 +9,5 @@ As more views are added, prefer one stylesheet per major UI area over growing th
 Phase 14–15 additions: the patch editor's sectioned grid (`.patch-section`, `.patch-readout`), selection highlights (`.timeline-track-header--selected`, `.timeline-block--selected`, `.mixer-strip--selected`), the `.timeline-view-bar`/`.block-toolbar` rows, mini note previews (`.timeline-block-note`), and lane gridlines driven by the per-lane `--bar-px`/`--beat-px` custom properties. Track headers are sticky (z-index above blocks and the playhead).
 
 Phase 16: piano-roll toolbar, sticky key column with an active state, the "outside the block" overlay, and the velocity lane (`.piano-roll-velocity-*`). The key column and velocity label share a 56px width so the lane lines up with the grid.
+
+Phase 17: `.patch-learn` (MIDI-learn button states) and the active Record button. `#keyboard-status` is hidden on touch-only devices (`hover: none` + `pointer: coarse`). The mixer's add-effect controls got the 32px minimum touch size that Phase 10 missed.

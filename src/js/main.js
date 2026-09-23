@@ -5,7 +5,7 @@ import { setProject, initTransportController } from "./core/transportController.
 import { loadProject, initAutosave } from "./core/persistence.js";
 import { initHistory } from "./core/history.js";
 import { initKeyboardShortcuts } from "./core/keyboardShortcuts.js";
-import { renderPianoTrigger } from "./ui/pianoTrigger.js";
+import { initComputerKeyboard } from "./ui/computerKeyboard.js";
 import { renderMIDIStatus } from "./ui/midiStatus.js";
 import { renderPatchEditor } from "./ui/patchEditor.js";
 import { renderTimeline } from "./ui/timeline.js";
@@ -14,7 +14,7 @@ import { renderProjectControls } from "./ui/projectControls.js";
 
 async function init() {
   initAudioEngine();
-  renderPianoTrigger(document.getElementById("piano-trigger"));
+  initComputerKeyboard(document.getElementById("keyboard-status"));
   renderMIDIStatus(document.getElementById("midi-status"));
   initMIDIInput();
 
@@ -58,7 +58,7 @@ async function init() {
   renderProjectControls(document.getElementById("project-controls"), project, renderProjectUI);
   initAutosave(() => project);
   initHistory(project, renderProjectUI);
-  initKeyboardShortcuts();
+  initKeyboardShortcuts(project);
 
   // Debug/verification handle for the browser console; nothing in the app reads it.
   window.synthDaw = { project };

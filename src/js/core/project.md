@@ -1,19 +1,24 @@
 # project.js
 
-The project data model: `Project { tempo, timeSignature: { beatsPerBar }, tracks: [], master: { volume, effects: [] }, loop: { enabled, startBeat, endBeat } }`, `Track { id, name, blocks: [], volume, pan, muted, soloed, effects: [], patch }`, `Block { id, startBeat, lengthBeats, notes: [] }`, `Note { id, note (MIDI number), startBeat (relative to the block), lengthBeats, velocity }`, `Effect { id, type, params: {}, bypassed }`. Plain data, no Web Audio/DOM references — mutated in place by the exported functions rather than returning new copies, since [timeline.js](../ui/timeline.md), [pianoRoll.js](../ui/pianoRoll.md), and [mixer.js](../ui/mixer.md) all re-render from the same object after every mutation.
+The project data model and **the only place project data is mutated**. Shape:
 
-The effect CRUD functions (`addEffect`, `removeEffect`, `setEffectParam`, `setEffectBypass`, `moveEffect`) take an `effectsOwner` parameter rather than a `Track` specifically — anything shaped like `{ effects: [] }` works, which is what lets `project.master` reuse the exact same functions a track uses, instead of duplicating them. This file never touches audio: [audioEngine.js](../audio/audioEngine.md) reconciles the audio graph against the project after every `project:changed`.
+- `Project { tempo, timeSignature: { beatsPerBar }, tracks, master: { volume, effects }, loop: { enabled, startBeat, endBeat } }`
+- `Track { id, name, blocks, volume, pan, muted, soloed, effects, patch }`, where `patch` is a [patch.js](../audio/patch.md) object (per-track instrument)
+- `Block { id, startBeat, lengthBeats, notes }`
+- `Note { id, note (MIDI 0–127), startBeat (relative to its block), lengthBeats, velocity (1–127) }`
+- `Effect { id, type, params, bypassed }`
 
-A note's `startBeat` is relative to its containing block, not the project timeline — [transportController.js](./transportController.md) computes the absolute position as `block.startBeat + note.startBeat` when scheduling playback. Since Phase 14 every track owns its instrument (`track.patch`, a [patch.js](../audio/patch.md) object), edited through `setTrackPatch`/`setTrackPatchParam(track, dottedPath, value)` and renamed through `renameTrack`.
+Everything is plain JSON with no audio or DOM references. It's mutated in place because every module holds the same project object.
 
-`setTempo`/`setBeatsPerBar`/`setLoopEnabled`/`setLoopRange` only mutate data; [transportController.js](./transportController.md) syncs the transport from the project on `project:changed`. The drag-driven mutators (`moveBlock`, `resizeBlock`, `moveNote`, `resizeNote`, tempo/bpb) use `setIfChanged`, so a `pointermove` that doesn't change the snapped value emits nothing.
+**Every mutator emits `project:changed`.** That drives autosave ([persistence.js](./persistence.md)), undo ([history.js](./history.md)), the audio-graph sync ([audioEngine.js](../audio/audioEngine.md)) and the transport sync ([transportController.js](./transportController.md)). A new mutator that skips `notifyChanged()` breaks all four. Drag-driven setters use `setIfChanged`, so a `pointermove` that doesn't change the snapped value emits nothing.
 
-`playableNotes(project)` is a generator yielding every note that should sound, in absolute beats (`{ track, note, velocity, startBeat, lengthBeats }`), clipped to its block: a note starting at or after the block's end is skipped, and one running past it is shortened. Shrinking a block therefore hides notes non-destructively. The sequencer and WAV export both use it, so they can't disagree.
+Mutators:
+- Tracks: `addTrack`, `removeTrack`, `renameTrack`, `setTrackVolume/Pan/Muted/Soloed`, `setTrackPatch`, `setTrackPatchParam(track, "filter.cutoff", v)`.
+- Blocks: `addBlock`, `removeBlock`, `moveBlock`, `resizeBlock`, `duplicateBlock` (placed right after the original, with fresh ids), `moveBlockToTrack`, and `transposeBlock(block, semitones)`. The transpose is **all-or-nothing**: it returns `false` and changes nothing if any note would leave `LOWEST_NOTE..HIGHEST_NOTE`, because shifting only some notes would silently change intervals.
+- Notes: `addNote`, `removeNote`, `moveNote`, `resizeNote`, `setNotePitch`, `setNoteVelocity`.
+- Global: `setTempo` (clamped to `MIN_TEMPO..MAX_TEMPO`), `setBeatsPerBar`, `setLoopEnabled`, `setLoopRange`, `setMasterVolume`.
+- Effects (`effectsOwner` is a track or `project.master`): `addEffect`, `removeEffect`, `setEffectParam`, `setEffectBypass`, `moveEffect`.
 
-`normalizeProject(project)` fills any missing field with defaults (older saves, hand-edited imports). It runs in `replaceProjectContents` and on startup load.
+**`playableNotes(project)`** is a generator yielding every note that should sound, in absolute beats (`{ track, note, velocity, startBeat, lengthBeats }`), clipped to its block. A block is a window onto its notes: notes starting at or after its end are skipped and longer ones are cut. The sequencer and WAV export share it.
 
-IDs are a simple incrementing counter (`track-1`, `block-1`, `note-1`, ...). Since Phase 9, projects *do* get saved/reloaded ([persistence.js](./persistence.md)) and imported from files ([projectControls.js](../ui/projectControls.md)), so the collision risk this used to just note is now real and handled: `syncIdCounter(project)` scans every id already present in loaded/imported data and advances the counter past the highest one seen — call it once, right after obtaining project data from outside this session, before any `addTrack`/`addBlock`/`addNote`/`addEffect` call.
-
-Every mutator here calls `notifyChanged()` (emits `project:changed` on the [eventBus](./eventBus.md)) — this is what drives autosave in [persistence.js](./persistence.md). Adding a new mutator function without this call means edits it makes are silently lost on reload.
-
-`serializeProject`/`parseProject` are the JSON (de)serialization used for file export/import (same thin-wrapper pattern as [patch.js](../audio/patch.md)'s `serializePatch`/`parsePatch`). `replaceProjectContents(target, source)` deep-clones `source` (a plain object, e.g. freshly parsed from a file or loaded from storage) and overwrites `target`'s fields *in place* — deliberately not swapping to a new object reference, since every UI module ([timeline.js](../ui/timeline.md), [mixer.js](../ui/mixer.md), `transportController.js`) holds onto the original project reference from startup.
+**Loading outside data:** `normalizeProject` fills missing fields (older saves, hand-edited imports, patches via `normalizePatch`). `syncIdCounter` advances the id counter past every id present, so new ids never collide. Ids are `prefix-N` from one counter. `replaceProjectContents(target, source)` deep-clones `source` into the existing object (normalizing and syncing ids), which is how New/Import/undo swap content without handing modules a new reference. `serializeProject`/`parseProject` are the JSON file format.

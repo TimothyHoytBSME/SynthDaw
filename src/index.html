@@ -10,9 +10,10 @@
   <header class="app-header">
     <h1>SynthDaw</h1>
     <p class="app-subtitle">
-      Click/tap a key, play with your computer keyboard (A W S E D F T G Y H U J),
-      or plug in a MIDI controller.
+      Double-click a lane to add a block, double-click a block to edit its notes. Play the
+      selected track live with a MIDI controller or your computer keyboard.
     </p>
+    <p id="keyboard-status" class="midi-status"></p>
     <p id="midi-status" class="midi-status"></p>
     <div id="project-controls" class="project-controls"></div>
   </header>
@@ -27,7 +28,6 @@
       <h2>Mixer</h2>
       <div id="mixer"></div>
     </section>
-    <div id="piano-trigger" class="piano" role="group" aria-label="On-screen piano"></div>
   </main>
   <script type="module" src="js/main.js"></script>
 </body>

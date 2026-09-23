@@ -1,3 +1,7 @@
 # index.html
 
-App entry point and only HTML page (single-page app). Loads `css/main.css` and the `js/main.js` module. Contains the header (with an empty `#midi-status` element filled by `midiStatus.js`, and an empty `#project-controls` filled by `projectControls.js`), an empty `#timeline` container filled by `timeline.js`, an empty `#mixer` container filled by `mixer.js`, an empty `#patch-editor` container filled by `patchEditor.js`, and an empty `#piano-trigger` container that `pianoTrigger.js` fills in at runtime — no other markup should be hardcoded here as the app grows; new views get their own UI module that renders into `<main>`.
+The single HTML page. It loads `css/main.css` and the `js/main.js` module. It contains only empty mount points that UI modules fill at runtime:
+- In the header: a how-to subtitle, `#keyboard-status` ([computerKeyboard.js](js/ui/computerKeyboard.md)), `#midi-status` ([midiStatus.js](js/ui/midiStatus.md)) and `#project-controls` ([projectControls.js](js/ui/projectControls.md)).
+- In `<main>`: `#timeline` ([timeline.js](js/ui/timeline.md)), `#patch-editor` ([patchEditor.js](js/ui/patchEditor.md), the selected track's instrument) and `#mixer` ([mixer.js](js/ui/mixer.md)).
+
+Don't hardcode other markup here. New views get their own UI module. The on-screen piano was removed in Phase 15 (on request). Live note input is MIDI or the computer keyboard.

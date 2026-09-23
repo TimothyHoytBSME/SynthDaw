@@ -18,7 +18,7 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/audio/synthEngine.md](../src/js/audio/synthEngine.md) | Companion doc for `src/js/audio/synthEngine.js`, polyphony/voice-stealing manager. |
 | [src/js/audio/patch.md](../src/js/audio/patch.md) | Companion doc for `src/js/audio/patch.js`, the JSON synth-patch data model. |
 | [src/js/audio/pitch.md](../src/js/audio/pitch.md) | Companion doc for `src/js/audio/pitch.js`, MIDI-note-to-frequency conversion. |
-| [src/js/ui/pianoTrigger.md](../src/js/ui/pianoTrigger.md) | Companion doc for `src/js/ui/pianoTrigger.js`, the on-screen/computer-keyboard note input. |
+| [src/js/ui/computerKeyboard.md](../src/js/ui/computerKeyboard.md) | Companion doc for `src/js/ui/computerKeyboard.js`, computer-keyboard note input (Z/X octave). |
 | [src/js/ui/patchEditor.md](../src/js/ui/patchEditor.md) | Companion doc for `src/js/ui/patchEditor.js`, the live patch-parameter editing UI. |
 | [src/js/midi/midiInput.md](../src/js/midi/midiInput.md) | Companion doc for `src/js/midi/midiInput.js`, the Web MIDI device/message layer. |
 | [src/js/ui/midiStatus.md](../src/js/ui/midiStatus.md) | Companion doc for `src/js/ui/midiStatus.js`, the MIDI connection-status readout. |
@@ -26,7 +26,7 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/core/transport.md](../src/js/core/transport.md) | Companion doc for `src/js/core/transport.js`, the audio-accurate play/pause/stop clock. |
 | [src/js/core/transportController.md](../src/js/core/transportController.md) | Companion doc for `src/js/core/transportController.js`, wires the transport to the metronome + note sequencer. |
 | [src/js/audio/click.md](../src/js/audio/click.md) | Companion doc for `src/js/audio/click.js`, the metronome click sound. |
-| [src/js/ui/timeline.md](../src/js/ui/timeline.md) | Companion doc for `src/js/ui/timeline.js`, the timeline/tracks/transport UI. |
+| [src/js/ui/timeline.md](../src/js/ui/timeline.md) | Companion doc for `src/js/ui/timeline.js`, the arrangement view (tracks, blocks, ruler, playhead). |
 | [src/js/ui/pianoRoll.md](../src/js/ui/pianoRoll.md) | Companion doc for `src/js/ui/pianoRoll.js`, the per-block note editor. |
 | [src/js/audio/effectChain.md](../src/js/audio/effectChain.md) | Companion doc for `src/js/audio/effectChain.js`, the ordered/bypassable effect-stage router. |
 | [src/js/audio/effectTypes.md](../src/js/audio/effectTypes.md) | Companion doc for `src/js/audio/effectTypes.js`, the effect-type registry + UI param metadata. |
@@ -43,7 +43,10 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/audio/exportRender.md](../src/js/audio/exportRender.md) | Companion doc for `src/js/audio/exportRender.js`, offline (non-realtime) project rendering. |
 | [src/js/audio/wavEncoder.md](../src/js/audio/wavEncoder.md) | Companion doc for `src/js/audio/wavEncoder.js`, `AudioBuffer` → WAV file encoding. |
 | [src/js/core/history.md](../src/js/core/history.md) | Companion doc for `src/js/core/history.js`, snapshot-based undo/redo. |
-| [src/js/core/keyboardShortcuts.md](../src/js/core/keyboardShortcuts.md) | Companion doc for `src/js/core/keyboardShortcuts.js`, global Space/Ctrl+Z/Ctrl+Y shortcuts. |
+| [src/js/core/keyboardShortcuts.md](../src/js/core/keyboardShortcuts.md) | Companion doc for `src/js/core/keyboardShortcuts.js`, global transport/undo/block-editing shortcuts. |
 | [tools/devServer.md](../tools/devServer.md) | Companion doc for `tools/devServer.py`, the no-cache static dev server. |
 | [src/js/audio/presets.md](../src/js/audio/presets.md) | Companion doc for `src/js/audio/presets.js`, built-in synth patch presets. |
 | [src/js/core/selection.md](../src/js/core/selection.md) | Companion doc for `src/js/core/selection.js`, selected track/block UI state. |
+| [src/js/ui/transportBar.md](../src/js/ui/transportBar.md) | Companion doc for `src/js/ui/transportBar.js`, the play/tempo/loop/position bar. |
+| [src/js/ui/blockToolbar.md](../src/js/ui/blockToolbar.md) | Companion doc for `src/js/ui/blockToolbar.js`, selected-block actions (edit, duplicate, transpose by octaves, delete). |
+| [src/js/core/blockActions.md](../src/js/core/blockActions.md) | Companion doc for `src/js/core/blockActions.js`, selected-block operations shared by toolbar and shortcuts. |

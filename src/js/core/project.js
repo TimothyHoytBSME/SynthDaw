@@ -13,6 +13,9 @@ function notifyChanged() {
 }
 
 const MIN_LENGTH_BEATS = 0.25;
+export const LOWEST_NOTE = 0;
+export const HIGHEST_NOTE = 127;
+export const SEMITONES_PER_OCTAVE = 12;
 export const MIN_TEMPO = 20;
 export const MAX_TEMPO = 300;
 
@@ -126,6 +129,45 @@ export function resizeBlock(block, newLengthBeats) {
   setIfChanged(block, "lengthBeats", Math.max(MIN_LENGTH_BEATS, newLengthBeats));
 }
 
+// Places a copy (with fresh ids) immediately after the original on the same track.
+export function duplicateBlock(track, block) {
+  const copy = {
+    id: nextId("block"),
+    startBeat: block.startBeat + block.lengthBeats,
+    lengthBeats: block.lengthBeats,
+    notes: block.notes.map((note) => ({ ...note, id: nextId("note") })),
+  };
+  track.blocks.push(copy);
+  notifyChanged();
+  return copy;
+}
+
+export function moveBlockToTrack(block, fromTrack, toTrack) {
+  if (fromTrack === toTrack) {
+    return;
+  }
+  fromTrack.blocks = fromTrack.blocks.filter((candidate) => candidate !== block);
+  toTrack.blocks.push(block);
+  notifyChanged();
+}
+
+// All-or-nothing: shifting only the notes that fit would silently change the music's
+// intervals, so if any note would leave the MIDI range nothing moves and this returns false.
+export function transposeBlock(block, semitones) {
+  const outOfRange = block.notes.some((note) => {
+    const shifted = note.note + semitones;
+    return shifted < LOWEST_NOTE || shifted > HIGHEST_NOTE;
+  });
+  if (outOfRange || semitones === 0) {
+    return !outOfRange;
+  }
+  for (const note of block.notes) {
+    note.note += semitones;
+  }
+  notifyChanged();
+  return true;
+}
+
 export function addNote(block, { note, startBeat, lengthBeats = 1, velocity = 100 }) {
   const noteEvent = {
     id: nextId("note"),
@@ -150,6 +192,14 @@ export function moveNote(note, newStartBeat) {
 
 export function resizeNote(note, newLengthBeats) {
   setIfChanged(note, "lengthBeats", Math.max(MIN_LENGTH_BEATS, newLengthBeats));
+}
+
+export function setNotePitch(note, pitch) {
+  setIfChanged(note, "note", Math.min(HIGHEST_NOTE, Math.max(LOWEST_NOTE, Math.round(pitch))));
+}
+
+export function setNoteVelocity(note, velocity) {
+  setIfChanged(note, "velocity", Math.min(127, Math.max(1, Math.round(velocity))));
 }
 
 export function setTempo(project, bpm) {

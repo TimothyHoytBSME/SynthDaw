@@ -1,3 +1,16 @@
 # keyboardShortcuts.js
 
-Global keyboard shortcuts: **Space** toggles play/pause on the shared [transport](./transportController.md), **Ctrl/Cmd+Z** undoes, **Ctrl/Cmd+Shift+Z** or **Ctrl/Cmd+Y** redoes (via [history.js](./history.md)). Every handler bails out first if `document.activeElement` is an `INPUT`/`SELECT`/`TEXTAREA` — without that check, pressing Space to type a space in a track-name field (once that exists) or adjusting a tempo/loop number input would instead toggle playback, and Ctrl+Z while editing a text field would fight the browser's own native undo for that field.
+Global shortcuts, set up by `initKeyboardShortcuts(project)`. They're ignored while a form field is focused, and with Alt held.
+
+| Key | Action |
+|---|---|
+| Space | Play/pause |
+| Ctrl/Cmd+Z | Undo ([history.js](./history.md)) |
+| Ctrl/Cmd+Shift+Z, Ctrl/Cmd+Y | Redo |
+| Ctrl/Cmd+D | Duplicate selected block |
+| Delete / Backspace | Delete selected block |
+| ↑ / ↓ | Transpose selected block ±1 semitone |
+| Shift+↑ / Shift+↓ | Transpose selected block ±1 octave |
+| Esc | Deselect block |
+
+Block keys are only claimed (and `preventDefault`ed) when a block is selected, so arrows still scroll the page otherwise. Bare letters are never claimed here, because they're note input ([computerKeyboard.js](../ui/computerKeyboard.md)). Block operations go through [blockActions.js](./blockActions.md).

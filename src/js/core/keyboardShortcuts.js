@@ -1,46 +1,86 @@
 import { getTransport } from "./transportController.js";
 import { undo, redo } from "./history.js";
+import { clearBlockSelection, getSelectedBlock } from "./selection.js";
+import {
+  deleteSelectedBlock,
+  duplicateSelectedBlock,
+  transposeSelectedBlock,
+  transposeSelectedBlockByOctaves,
+} from "./blockActions.js";
 
-const TEXT_INPUT_TAGS = new Set(["INPUT", "SELECT", "TEXTAREA"]);
+const FIELD_TAGS = new Set(["INPUT", "SELECT", "TEXTAREA"]);
 
 function isTypingInField() {
-  return TEXT_INPUT_TAGS.has(document.activeElement?.tagName);
+  return FIELD_TAGS.has(document.activeElement?.tagName) || document.activeElement?.isContentEditable;
 }
 
-function handleKeydown(event) {
-  if (isTypingInField()) {
-    return;
+function togglePlayback() {
+  const transport = getTransport();
+  if (transport.isRunning()) {
+    transport.pause();
+  } else {
+    transport.play();
   }
+}
 
-  if (event.code === "Space") {
-    event.preventDefault();
-    const transport = getTransport();
-    if (transport.isRunning()) {
-      transport.pause();
-    } else {
-      transport.play();
+// Returns true if the key was handled. Modifier-free keys only; letter keys belong to
+// computerKeyboard.js (note input), so nothing here may claim a bare letter.
+function handlePlainKey(event, project) {
+  const blockKeys = ["Delete", "Backspace", "ArrowUp", "ArrowDown"];
+  if (blockKeys.includes(event.key) && !getSelectedBlock(project)) {
+    return false; // leave arrows (page scroll) and Backspace alone when there's nothing to act on
+  }
+  switch (event.key) {
+    case " ":
+      togglePlayback();
+      return true;
+    case "Delete":
+    case "Backspace":
+      deleteSelectedBlock(project);
+      return true;
+    case "Escape":
+      clearBlockSelection();
+      return true;
+    case "ArrowUp":
+    case "ArrowDown": {
+      const direction = event.key === "ArrowUp" ? 1 : -1;
+      if (event.shiftKey) {
+        transposeSelectedBlockByOctaves(project, direction);
+      } else {
+        transposeSelectedBlock(project, direction);
+      }
+      return true;
     }
-    return;
+    default:
+      return false;
   }
+}
 
-  const primaryModifier = event.ctrlKey || event.metaKey;
-  if (!primaryModifier) {
-    return;
-  }
-
+function handleModifiedKey(event, project) {
   const key = event.key.toLowerCase();
   if (key === "z" && event.shiftKey) {
-    event.preventDefault();
     redo();
   } else if (key === "z") {
-    event.preventDefault();
     undo();
   } else if (key === "y") {
-    event.preventDefault();
     redo();
+  } else if (key === "d") {
+    duplicateSelectedBlock(project);
+  } else {
+    return false;
   }
+  return true;
 }
 
-export function initKeyboardShortcuts() {
-  window.addEventListener("keydown", handleKeydown);
+export function initKeyboardShortcuts(project) {
+  window.addEventListener("keydown", (event) => {
+    if (isTypingInField() || event.altKey) {
+      return;
+    }
+    const handled =
+      event.ctrlKey || event.metaKey ? handleModifiedKey(event, project) : handlePlainKey(event, project);
+    if (handled) {
+      event.preventDefault();
+    }
+  });
 }

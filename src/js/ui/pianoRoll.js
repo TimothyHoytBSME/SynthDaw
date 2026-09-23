@@ -52,6 +52,7 @@ export function renderPianoRoll(container, block) {
   grid.style.height = `${(HIGH_NOTE - LOW_NOTE + 1) * ROW_HEIGHT}px`;
 
   function rerender() {
+    bus.emit("block:notes-changed", { blockId: block.id });
     renderPianoRoll(container, block);
   }
 
@@ -113,6 +114,7 @@ export function renderPianoRoll(container, block) {
         }
       }
       function onUp() {
+        bus.emit("block:notes-changed", { blockId: block.id });
         cell.releasePointerCapture(event.pointerId);
         cell.removeEventListener("pointermove", onMove);
         cell.removeEventListener("pointerup", onUp);

@@ -1,357 +1,458 @@
 import {
   addTrack,
   removeTrack,
+  renameTrack,
   addBlock,
-  removeBlock,
   moveBlock,
   resizeBlock,
-  setLoopEnabled,
-  setLoopRange,
-  setTempo,
-  setBeatsPerBar,
+  moveBlockToTrack,
 } from "../core/project.js";
-import { getTransport, setMetronomeEnabled, isMetronomeEnabled } from "../core/transportController.js";
-import { renderPianoRoll } from "./pianoRoll.js";
+import { getTransport } from "../core/transportController.js";
 import { bus } from "../core/eventBus.js";
-import { getSelectedTrack, selectTrack } from "../core/selection.js";
+import { getSelectedTrack, getSelection, selectTrack, selectBlock, findBlock } from "../core/selection.js";
+import { renderPianoRoll } from "./pianoRoll.js";
+import { createTransportBar } from "./transportBar.js";
+import { createBlockToolbar } from "./blockToolbar.js";
 
-const MIN_PIXELS_PER_BEAT = 10;
-const MAX_PIXELS_PER_BEAT = 120;
+const MIN_PIXELS_PER_BEAT = 6;
+const MAX_PIXELS_PER_BEAT = 160;
 const MIN_TRACK_HEIGHT = 40;
-const MAX_TRACK_HEIGHT = 120;
-const DEFAULT_BLOCK_LENGTH_BEATS = 4;
-const VISIBLE_BARS = 32;
+const MAX_TRACK_HEIGHT = 160;
+const DEFAULT_BLOCK_LENGTH_BARS = 1;
+const MIN_VISIBLE_BARS = 32;
+const PADDING_BARS = 8;
+// Below this zoom, dragging snaps to whole beats instead of quarter beats.
+const COARSE_SNAP_PIXELS_PER_BEAT = 20;
+const MIN_BEAT_TICK_SPACING_PX = 10;
+const MIN_NOTE_PREVIEW_RANGE = 12;
 // Must match the header width baked into the `.timeline-track-header` CSS rule.
 const TRACK_HEADER_WIDTH = 120;
 
-export function renderTimeline(container, project) {
-  let pixelsPerBeat = 40;
-  let trackHeight = 64;
+// Module-level so zoom and the open piano roll survive full re-renders (undo/redo/import).
+const view = { pixelsPerBeat: 40, trackHeight: 64 };
+let pianoRollBlockId = null;
 
+function rangeField(labelText, min, max, value) {
+  const label = document.createElement("label");
+  label.className = "transport-field";
+  label.textContent = labelText;
+  const input = document.createElement("input");
+  input.type = "range";
+  input.min = String(min);
+  input.max = String(max);
+  input.value = String(value);
+  label.appendChild(input);
+  return { label, input };
+}
+
+// Miniature of a block's notes, positioned in % so it scales with the block for free.
+function renderNotePreview(blockEl, block) {
+  blockEl.querySelector(".timeline-block-notes")?.remove();
+  const layer = document.createElement("div");
+  layer.className = "timeline-block-notes";
+  const visible = block.notes.filter((note) => note.startBeat < block.lengthBeats);
+  if (visible.length > 0) {
+    const pitches = visible.map((note) => note.note);
+    let low = Math.min(...pitches);
+    let high = Math.max(...pitches);
+    const padding = Math.max(0, MIN_NOTE_PREVIEW_RANGE - (high - low)) / 2;
+    low -= padding;
+    high += padding;
+    const rows = high - low + 1;
+    for (const note of visible) {
+      const bar = document.createElement("div");
+      bar.className = "timeline-block-note";
+      const end = Math.min(block.lengthBeats, note.startBeat + note.lengthBeats);
+      bar.style.left = `${(note.startBeat / block.lengthBeats) * 100}%`;
+      bar.style.width = `${((end - note.startBeat) / block.lengthBeats) * 100}%`;
+      bar.style.top = `${((high - note.note) / rows) * 100}%`;
+      bar.style.height = `${100 / rows}%`;
+      layer.appendChild(bar);
+    }
+  }
+  blockEl.prepend(layer);
+}
+
+export function renderTimeline(container, project) {
   const root = document.createElement("div");
   root.className = "timeline";
   container.appendChild(root);
 
-  const transportBar = document.createElement("div");
-  transportBar.className = "transport-bar";
-  root.appendChild(transportBar);
+  const transportBar = createTransportBar(project, {
+    onLayoutChange: renderAll,
+    onTransportAction: syncPlayhead,
+  });
 
-  const playButton = document.createElement("button");
-  playButton.type = "button";
-  playButton.textContent = "▶ Play";
-
-  const pauseButton = document.createElement("button");
-  pauseButton.type = "button";
-  pauseButton.textContent = "⏸ Pause";
-
-  const stopButton = document.createElement("button");
-  stopButton.type = "button";
-  stopButton.textContent = "⏹ Stop";
-
-  const tempoLabel = document.createElement("label");
-  tempoLabel.className = "transport-field";
-  tempoLabel.textContent = "Tempo";
-  const tempoInput = document.createElement("input");
-  tempoInput.type = "number";
-  tempoInput.min = "20";
-  tempoInput.max = "300";
-  tempoInput.value = String(project.tempo);
-  tempoLabel.appendChild(tempoInput);
-
-  const beatsPerBarLabel = document.createElement("label");
-  beatsPerBarLabel.className = "transport-field";
-  beatsPerBarLabel.textContent = "Beats/bar";
-  const beatsPerBarInput = document.createElement("input");
-  beatsPerBarInput.type = "number";
-  beatsPerBarInput.min = "1";
-  beatsPerBarInput.max = "16";
-  beatsPerBarInput.value = String(project.timeSignature.beatsPerBar);
-  beatsPerBarLabel.appendChild(beatsPerBarInput);
-
-  const metronomeLabel = document.createElement("label");
-  metronomeLabel.className = "transport-field";
-  const metronomeCheckbox = document.createElement("input");
-  metronomeCheckbox.type = "checkbox";
-  metronomeCheckbox.checked = isMetronomeEnabled();
-  metronomeLabel.appendChild(metronomeCheckbox);
-  metronomeLabel.appendChild(document.createTextNode(" Metronome"));
-
-  const hZoomLabel = document.createElement("label");
-  hZoomLabel.className = "transport-field";
-  hZoomLabel.textContent = "Zoom ↔";
-  const hZoomInput = document.createElement("input");
-  hZoomInput.type = "range";
-  hZoomInput.min = String(MIN_PIXELS_PER_BEAT);
-  hZoomInput.max = String(MAX_PIXELS_PER_BEAT);
-  hZoomInput.value = String(pixelsPerBeat);
-  hZoomLabel.appendChild(hZoomInput);
-
-  const vZoomLabel = document.createElement("label");
-  vZoomLabel.className = "transport-field";
-  vZoomLabel.textContent = "Zoom ↕";
-  const vZoomInput = document.createElement("input");
-  vZoomInput.type = "range";
-  vZoomInput.min = String(MIN_TRACK_HEIGHT);
-  vZoomInput.max = String(MAX_TRACK_HEIGHT);
-  vZoomInput.value = String(trackHeight);
-  vZoomLabel.appendChild(vZoomInput);
-
-  const loopLabel = document.createElement("label");
-  loopLabel.className = "transport-field";
-  const loopCheckbox = document.createElement("input");
-  loopCheckbox.type = "checkbox";
-  loopCheckbox.checked = project.loop.enabled;
-  loopLabel.append(loopCheckbox, " Loop");
-
-  const loopStartInput = document.createElement("input");
-  loopStartInput.type = "number";
-  loopStartInput.min = "0";
-  loopStartInput.step = "0.25";
-  loopStartInput.value = String(project.loop.startBeat);
-  loopStartInput.className = "loop-range-input";
-
-  const loopEndInput = document.createElement("input");
-  loopEndInput.type = "number";
-  loopEndInput.min = "0.25";
-  loopEndInput.step = "0.25";
-  loopEndInput.value = String(project.loop.endBeat);
-  loopEndInput.className = "loop-range-input";
-
-  loopLabel.append(loopStartInput, "–", loopEndInput);
-
+  const viewBar = document.createElement("div");
+  viewBar.className = "timeline-view-bar";
   const addTrackButton = document.createElement("button");
   addTrackButton.type = "button";
   addTrackButton.textContent = "+ Track";
+  const hZoom = rangeField("Zoom ↔", MIN_PIXELS_PER_BEAT, MAX_PIXELS_PER_BEAT, view.pixelsPerBeat);
+  const vZoom = rangeField("Zoom ↕", MIN_TRACK_HEIGHT, MAX_TRACK_HEIGHT, view.trackHeight);
+  viewBar.append(addTrackButton, hZoom.label, vZoom.label);
 
-  transportBar.append(
-    playButton,
-    pauseButton,
-    stopButton,
-    tempoLabel,
-    beatsPerBarLabel,
-    metronomeLabel,
-    loopLabel,
-    hZoomLabel,
-    vZoomLabel,
-    addTrackButton,
-  );
+  const blockToolbar = createBlockToolbar(project, { onEditNotes: openPianoRoll });
 
   const scrollArea = document.createElement("div");
   scrollArea.className = "timeline-scroll";
-  root.appendChild(scrollArea);
-
   const grid = document.createElement("div");
   grid.className = "timeline-grid";
-  scrollArea.appendChild(grid);
-
   const ruler = document.createElement("div");
   ruler.className = "timeline-ruler";
-  grid.appendChild(ruler);
-
+  ruler.title = "Click or drag to move the playhead";
   const tracksEl = document.createElement("div");
   tracksEl.className = "timeline-tracks";
-  grid.appendChild(tracksEl);
-
   const loopRegion = document.createElement("div");
   loopRegion.className = "timeline-loop-region";
-  loopRegion.style.left = `${TRACK_HEADER_WIDTH}px`;
-  grid.appendChild(loopRegion);
-
   const playhead = document.createElement("div");
   playhead.className = "timeline-playhead";
   playhead.style.left = `${TRACK_HEADER_WIDTH}px`;
-  grid.appendChild(playhead);
-
-  function renderLoopRegion() {
-    loopRegion.hidden = !project.loop.enabled;
-    loopRegion.style.transform = `translateX(${project.loop.startBeat * pixelsPerBeat}px)`;
-    loopRegion.style.width = `${(project.loop.endBeat - project.loop.startBeat) * pixelsPerBeat}px`;
-    loopRegion.style.top = `${ruler.offsetHeight}px`;
-    loopRegion.style.height = `${tracksEl.offsetHeight}px`;
-  }
-
+  grid.append(ruler, tracksEl, loopRegion, playhead);
+  scrollArea.appendChild(grid);
 
   const pianoRollPanel = document.createElement("div");
   pianoRollPanel.className = "piano-roll-panel";
   pianoRollPanel.hidden = true;
-  root.appendChild(pianoRollPanel);
+
+  root.append(transportBar.element, viewBar, blockToolbar.element, scrollArea, pianoRollPanel);
+
+  function beatsPerBar() {
+    return project.timeSignature.beatsPerBar;
+  }
+
+  function snapBeat(beat) {
+    const resolution = view.pixelsPerBeat < COARSE_SNAP_PIXELS_PER_BEAT ? 1 : 0.25;
+    return Math.round(beat / resolution) * resolution;
+  }
+
+  function visibleBars() {
+    let lastBeat = 0;
+    for (const track of project.tracks) {
+      for (const block of track.blocks) {
+        lastBeat = Math.max(lastBeat, block.startBeat + block.lengthBeats);
+      }
+    }
+    lastBeat = Math.max(lastBeat, project.loop.endBeat);
+    return Math.max(MIN_VISIBLE_BARS, Math.ceil(lastBeat / beatsPerBar()) + PADDING_BARS);
+  }
+
+  function totalWidth() {
+    return visibleBars() * beatsPerBar() * view.pixelsPerBeat;
+  }
+
+  function beatFromClientX(clientX, element) {
+    return Math.max(0, (clientX - element.getBoundingClientRect().left) / view.pixelsPerBeat);
+  }
+
+  // --- Piano roll -------------------------------------------------------------------------
+
+  function closePianoRoll() {
+    pianoRollBlockId = null;
+    pianoRollPanel.hidden = true;
+    pianoRollPanel.innerHTML = "";
+  }
 
   function openPianoRoll(track, block) {
+    selectBlock(track.id, block.id);
+    showPianoRoll(track, block);
+  }
+
+  function showPianoRoll(track, block) {
+    pianoRollBlockId = block.id;
     pianoRollPanel.innerHTML = "";
     pianoRollPanel.hidden = false;
 
     const header = document.createElement("div");
     header.className = "piano-roll-panel-header";
-
     const title = document.createElement("span");
-    title.textContent = `${track.name} — block @ beat ${block.startBeat}`;
-    header.appendChild(title);
-
+    title.textContent = `${track.name} — block at bar ${Math.floor(block.startBeat / beatsPerBar()) + 1}`;
     const closeButton = document.createElement("button");
     closeButton.type = "button";
     closeButton.textContent = "Close";
-    closeButton.addEventListener("click", () => {
-      pianoRollPanel.hidden = true;
-      pianoRollPanel.innerHTML = "";
-    });
-    header.appendChild(closeButton);
+    closeButton.addEventListener("click", closePianoRoll);
+    header.append(title, closeButton);
 
     const body = document.createElement("div");
     pianoRollPanel.append(header, body);
     renderPianoRoll(body, block);
   }
 
-  function updatePlayheadExtent() {
-    playhead.style.top = `${ruler.offsetHeight}px`;
-    playhead.style.height = `${tracksEl.offsetHeight}px`;
+  // Re-opens on the same block id after anything that may have replaced the block object
+  // (undo/redo, transpose) — or closes if that block no longer exists.
+  function refreshPianoRoll() {
+    if (!pianoRollBlockId) {
+      return;
+    }
+    const found = findBlock(project, pianoRollBlockId);
+    if (found) {
+      showPianoRoll(found.track, found.block);
+    } else {
+      closePianoRoll();
+    }
   }
 
-  function totalWidth() {
-    return VISIBLE_BARS * project.timeSignature.beatsPerBar * pixelsPerBeat;
-  }
+  // --- Ruler, loop, playhead --------------------------------------------------------------
 
   function renderRuler() {
     ruler.innerHTML = "";
     ruler.style.width = `${totalWidth()}px`;
-    const beatsPerBar = project.timeSignature.beatsPerBar;
-    for (let bar = 0; bar < VISIBLE_BARS; bar += 1) {
+    const showBeatTicks = view.pixelsPerBeat >= MIN_BEAT_TICK_SPACING_PX;
+    const bars = visibleBars();
+    for (let bar = 0; bar < bars; bar += 1) {
       const mark = document.createElement("div");
       mark.className = "ruler-mark";
-      mark.style.left = `${bar * beatsPerBar * pixelsPerBeat}px`;
+      mark.style.left = `${bar * beatsPerBar() * view.pixelsPerBeat}px`;
       mark.textContent = String(bar + 1);
       ruler.appendChild(mark);
+      for (let beat = 1; showBeatTicks && beat < beatsPerBar(); beat += 1) {
+        const tick = document.createElement("div");
+        tick.className = "ruler-tick";
+        tick.style.left = `${(bar * beatsPerBar() + beat) * view.pixelsPerBeat}px`;
+        ruler.appendChild(tick);
+      }
     }
   }
 
-  function beatFromClientX(clientX, laneEl) {
-    const rect = laneEl.getBoundingClientRect();
-    const x = clientX - rect.left;
-    return Math.max(0, x / pixelsPerBeat);
+  function renderLoopRegion() {
+    loopRegion.hidden = !project.loop.enabled;
+    loopRegion.style.left = `${TRACK_HEADER_WIDTH + project.loop.startBeat * view.pixelsPerBeat}px`;
+    loopRegion.style.width = `${(project.loop.endBeat - project.loop.startBeat) * view.pixelsPerBeat}px`;
+    loopRegion.style.top = `${ruler.offsetHeight}px`;
+    loopRegion.style.height = `${tracksEl.offsetHeight}px`;
   }
 
-  function snapBeat(beat) {
-    return Math.round(beat * 4) / 4;
+  function syncPlayhead() {
+    const beat = getTransport().getPositionBeats();
+    playhead.style.transform = `translateX(${beat * view.pixelsPerBeat}px)`;
+    transportBar.setPosition(beat);
   }
 
-  function renderBlock(lane, track, block) {
+  function seekToClientX(clientX) {
+    getTransport().seek(snapBeat(beatFromClientX(clientX, ruler)));
+    syncPlayhead();
+  }
+
+  ruler.addEventListener("pointerdown", (event) => {
+    ruler.setPointerCapture(event.pointerId);
+    seekToClientX(event.clientX);
+    const onMove = (moveEvent) => seekToClientX(moveEvent.clientX);
+    const onUp = () => {
+      ruler.removeEventListener("pointermove", onMove);
+      ruler.removeEventListener("pointerup", onUp);
+    };
+    ruler.addEventListener("pointermove", onMove);
+    ruler.addEventListener("pointerup", onUp);
+  });
+
+  // --- Tracks and blocks ------------------------------------------------------------------
+
+  // Selection only toggles classes on existing elements: rebuilding here would destroy the
+  // element a drag is in progress on (selecting a block happens on its pointerdown).
+  function highlightSelection() {
+    const selection = getSelection();
+    const selectedTrack = getSelectedTrack(project);
+    tracksEl.querySelectorAll(".timeline-track-header").forEach((header) => {
+      header.classList.toggle("timeline-track-header--selected", header.dataset.trackId === selectedTrack?.id);
+    });
+    tracksEl.querySelectorAll(".timeline-block").forEach((blockEl) => {
+      blockEl.classList.toggle("timeline-block--selected", blockEl.dataset.blockId === selection.blockId);
+    });
+  }
+
+  function startRename(nameSpan, track) {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "timeline-track-rename";
+    input.value = track.name;
+    input.setAttribute("aria-label", "Track name");
+    let done = false;
+    const finish = (commit) => {
+      if (done) {
+        return;
+      }
+      done = true;
+      if (commit) {
+        renameTrack(track, input.value);
+      }
+      renderTracks();
+      bus.emit("project:tracks-changed", {});
+    };
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        finish(true);
+      } else if (event.key === "Escape") {
+        finish(false);
+      }
+    });
+    input.addEventListener("blur", () => finish(true));
+    nameSpan.replaceWith(input);
+    input.focus();
+    input.select();
+  }
+
+  function renderBlock(lane, track, trackIndex, block) {
     const blockEl = document.createElement("div");
     blockEl.className = "timeline-block";
-    blockEl.style.left = `${block.startBeat * pixelsPerBeat}px`;
-    blockEl.style.width = `${block.lengthBeats * pixelsPerBeat}px`;
-    blockEl.title = `${track.name} block: ${block.lengthBeats} beats, ${block.notes.length} note(s) — double-click to edit`;
+    blockEl.dataset.blockId = block.id;
+    blockEl.style.left = `${block.startBeat * view.pixelsPerBeat}px`;
+    blockEl.style.width = `${block.lengthBeats * view.pixelsPerBeat}px`;
+    blockEl.title = "Drag to move · drag right edge to resize · double-click to edit notes";
+    renderNotePreview(blockEl, block);
+
+    const resizeHandle = document.createElement("div");
+    resizeHandle.className = "timeline-block-resize";
+    blockEl.appendChild(resizeHandle);
 
     blockEl.addEventListener("dblclick", (event) => {
       event.stopPropagation();
       openPianoRoll(track, block);
     });
 
-    const removeButton = document.createElement("button");
-    removeButton.type = "button";
-    removeButton.className = "timeline-block-remove";
-    removeButton.textContent = "×";
-    removeButton.addEventListener("pointerdown", (event) => event.stopPropagation());
-    removeButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      removeBlock(track, block.id);
-      renderTracks();
-    });
-    blockEl.appendChild(removeButton);
-
-    const resizeHandle = document.createElement("div");
-    resizeHandle.className = "timeline-block-resize";
-    blockEl.appendChild(resizeHandle);
-
     blockEl.addEventListener("pointerdown", (event) => {
-      if (event.target === removeButton) {
-        return;
-      }
       event.stopPropagation();
+      selectBlock(track.id, block.id);
       const isResize = event.target === resizeHandle;
-      const startClientX = event.clientX;
+      const startX = event.clientX;
+      const startY = event.clientY;
       const startBeat = block.startBeat;
       const startLength = block.lengthBeats;
+      let targetTrackIndex = trackIndex;
       blockEl.setPointerCapture(event.pointerId);
+      blockEl.classList.add("timeline-block--dragging");
 
       function onMove(moveEvent) {
-        const deltaBeats = (moveEvent.clientX - startClientX) / pixelsPerBeat;
+        const deltaBeats = (moveEvent.clientX - startX) / view.pixelsPerBeat;
         if (isResize) {
           resizeBlock(block, snapBeat(startLength + deltaBeats));
-          blockEl.style.width = `${block.lengthBeats * pixelsPerBeat}px`;
-        } else {
-          moveBlock(block, snapBeat(startBeat + deltaBeats));
-          blockEl.style.left = `${block.startBeat * pixelsPerBeat}px`;
+          blockEl.style.width = `${block.lengthBeats * view.pixelsPerBeat}px`;
+          renderNotePreview(blockEl, block);
+          return;
         }
+        moveBlock(block, snapBeat(startBeat + deltaBeats));
+        blockEl.style.left = `${block.startBeat * view.pixelsPerBeat}px`;
+        // Moving to another track is only previewed (translateY) until release: re-parenting
+        // the element mid-drag would drop its pointer capture.
+        const rowDelta = Math.round((moveEvent.clientY - startY) / view.trackHeight);
+        targetTrackIndex = Math.min(project.tracks.length - 1, Math.max(0, trackIndex + rowDelta));
+        blockEl.style.transform = `translateY(${(targetTrackIndex - trackIndex) * view.trackHeight}px)`;
       }
       function onUp() {
-        blockEl.releasePointerCapture(event.pointerId);
         blockEl.removeEventListener("pointermove", onMove);
         blockEl.removeEventListener("pointerup", onUp);
+        blockEl.removeEventListener("pointercancel", onUp);
+        blockEl.classList.remove("timeline-block--dragging");
+        if (targetTrackIndex !== trackIndex) {
+          const targetTrack = project.tracks[targetTrackIndex];
+          moveBlockToTrack(block, track, targetTrack);
+          selectBlock(targetTrack.id, block.id);
+        }
+        // Rebuild only after a real change: rebuilding after a plain click would replace the
+        // element between the two clicks of a double-click, and dblclick would never fire.
+        const changed =
+          targetTrackIndex !== trackIndex || block.startBeat !== startBeat || block.lengthBeats !== startLength;
+        if (changed) {
+          bus.emit("project:blocks-changed", {});
+        }
       }
       blockEl.addEventListener("pointermove", onMove);
       blockEl.addEventListener("pointerup", onUp);
+      blockEl.addEventListener("pointercancel", onUp);
     });
 
     lane.appendChild(blockEl);
   }
 
+  function renderTrackRow(track, trackIndex) {
+    const row = document.createElement("div");
+    row.className = "timeline-row";
+    row.style.height = `${view.trackHeight}px`;
+
+    const header = document.createElement("div");
+    header.className = "timeline-track-header";
+    header.dataset.trackId = track.id;
+    header.title = "Click to select (live input plays this track) · double-click the name to rename";
+    header.addEventListener("click", () => selectTrack(track.id));
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "timeline-track-name";
+    nameSpan.textContent = track.name;
+    nameSpan.addEventListener("dblclick", () => startRename(nameSpan, track));
+
+    const removeTrackButton = document.createElement("button");
+    removeTrackButton.type = "button";
+    removeTrackButton.className = "timeline-track-remove";
+    removeTrackButton.textContent = "×";
+    removeTrackButton.title = "Remove track";
+    removeTrackButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (track.blocks.length > 0 && !window.confirm(`Remove "${track.name}" and its blocks?`)) {
+        return;
+      }
+      removeTrack(project, track.id);
+      renderTracks();
+      bus.emit("project:tracks-changed", {});
+    });
+    header.append(nameSpan, removeTrackButton);
+
+    const lane = document.createElement("div");
+    lane.className = "timeline-lane";
+    lane.style.width = `${totalWidth()}px`;
+    lane.style.setProperty("--bar-px", `${beatsPerBar() * view.pixelsPerBeat}px`);
+    lane.style.setProperty("--beat-px", `${view.pixelsPerBeat}px`);
+    lane.addEventListener("click", (event) => {
+      if (event.target === lane) {
+        selectTrack(track.id);
+      }
+    });
+    lane.addEventListener("dblclick", (event) => {
+      if (event.target !== lane) {
+        return;
+      }
+      const lengthBeats = DEFAULT_BLOCK_LENGTH_BARS * beatsPerBar();
+      const startBeat = Math.floor(beatFromClientX(event.clientX, lane) / beatsPerBar()) * beatsPerBar();
+      const block = addBlock(track, { startBeat, lengthBeats });
+      selectBlock(track.id, block.id);
+      renderTracks();
+    });
+
+    for (const block of track.blocks) {
+      renderBlock(lane, track, trackIndex, block);
+    }
+
+    row.append(header, lane);
+    return row;
+  }
+
   function renderTracks() {
     tracksEl.innerHTML = "";
-    for (const track of project.tracks) {
-      const row = document.createElement("div");
-      row.className = "timeline-row";
-      row.style.height = `${trackHeight}px`;
-
-      const header = document.createElement("div");
-      header.className = "timeline-track-header";
-      header.classList.toggle("timeline-track-header--selected", track === getSelectedTrack(project));
-      header.addEventListener("click", () => selectTrack(track.id));
-
-      const nameSpan = document.createElement("span");
-      nameSpan.textContent = track.name;
-      header.appendChild(nameSpan);
-
-      const removeTrackButton = document.createElement("button");
-      removeTrackButton.type = "button";
-      removeTrackButton.className = "timeline-track-remove";
-      removeTrackButton.textContent = "×";
-      removeTrackButton.addEventListener("click", (event) => {
-        event.stopPropagation();
-        removeTrack(project, track.id);
-        renderTracks();
-        bus.emit("project:tracks-changed", {});
-      });
-      header.appendChild(removeTrackButton);
-
-      row.appendChild(header);
-
-      const lane = document.createElement("div");
-      lane.className = "timeline-lane";
-      lane.style.width = `${totalWidth()}px`;
-
-      lane.addEventListener("click", (event) => {
-        if (event.target !== lane) {
-          return;
-        }
-        const beat = snapBeat(beatFromClientX(event.clientX, lane));
-        addBlock(track, { startBeat: beat, lengthBeats: DEFAULT_BLOCK_LENGTH_BEATS });
-        renderTracks();
-      });
-
-      for (const block of track.blocks) {
-        renderBlock(lane, track, block);
-      }
-
-      row.appendChild(lane);
-      tracksEl.appendChild(row);
-    }
-    updatePlayheadExtent();
+    project.tracks.forEach((track, index) => tracksEl.appendChild(renderTrackRow(track, index)));
+    playhead.style.top = `${ruler.offsetHeight}px`;
+    playhead.style.height = `${tracksEl.offsetHeight}px`;
+    highlightSelection();
     renderLoopRegion();
   }
 
-  function syncPlayhead() {
-    const beat = getTransport().getPositionBeats();
-    playhead.style.transform = `translateX(${beat * pixelsPerBeat}px)`;
+  function renderAll() {
+    renderRuler();
+    renderTracks();
+    syncPlayhead();
   }
+
+  addTrackButton.addEventListener("click", () => {
+    const track = addTrack(project);
+    selectTrack(track.id);
+    renderAll();
+    bus.emit("project:tracks-changed", {});
+  });
+  hZoom.input.addEventListener("input", () => {
+    view.pixelsPerBeat = Number(hZoom.input.value);
+    renderAll();
+  });
+  vZoom.input.addEventListener("input", () => {
+    view.trackHeight = Number(vZoom.input.value);
+    renderTracks();
+  });
 
   let animationFrame = 0;
   function updatePlayheadLoop() {
@@ -359,70 +460,29 @@ export function renderTimeline(container, project) {
     animationFrame = requestAnimationFrame(updatePlayheadLoop);
   }
 
-  playButton.addEventListener("click", () => {
-    getTransport().play();
-    syncPlayhead();
-  });
-  pauseButton.addEventListener("click", () => {
-    getTransport().pause();
-    syncPlayhead();
-  });
-  stopButton.addEventListener("click", () => {
-    getTransport().stop();
-    syncPlayhead();
-  });
-  tempoInput.addEventListener("change", () => {
-    setTempo(project, Number(tempoInput.value) || project.tempo);
-    tempoInput.value = String(project.tempo);
-  });
-  beatsPerBarInput.addEventListener("change", () => {
-    setBeatsPerBar(project, Number(beatsPerBarInput.value) || project.timeSignature.beatsPerBar);
-    beatsPerBarInput.value = String(project.timeSignature.beatsPerBar);
-    renderRuler();
-    renderTracks();
-  });
-  metronomeCheckbox.addEventListener("change", () => {
-    setMetronomeEnabled(metronomeCheckbox.checked);
-  });
-  loopCheckbox.addEventListener("change", () => {
-    setLoopEnabled(project, loopCheckbox.checked);
-    renderLoopRegion();
-  });
-  loopStartInput.addEventListener("input", () => {
-    setLoopRange(project, Number(loopStartInput.value) || 0, project.loop.endBeat);
-    loopStartInput.value = String(project.loop.startBeat);
-    renderLoopRegion();
-  });
-  loopEndInput.addEventListener("input", () => {
-    setLoopRange(project, project.loop.startBeat, Number(loopEndInput.value) || project.loop.endBeat);
-    loopEndInput.value = String(project.loop.endBeat);
-    renderLoopRegion();
-  });
-  hZoomInput.addEventListener("input", () => {
-    pixelsPerBeat = Number(hZoomInput.value);
-    renderRuler();
-    renderTracks();
-    syncPlayhead();
-  });
-  vZoomInput.addEventListener("input", () => {
-    trackHeight = Number(vZoomInput.value);
-    renderTracks();
-  });
-  addTrackButton.addEventListener("click", () => {
-    addTrack(project);
-    renderTracks();
-    bus.emit("project:tracks-changed", {});
-  });
+  const unsubscribers = [
+    bus.on("selection:changed", highlightSelection),
+    bus.on("project:blocks-changed", () => {
+      renderAll();
+      refreshPianoRoll();
+    }),
+    bus.on("block:notes-changed", ({ blockId }) => {
+      const found = findBlock(project, blockId);
+      const blockEl = tracksEl.querySelector(`[data-block-id="${blockId}"]`);
+      if (found && blockEl) {
+        renderNotePreview(blockEl, found.block);
+      }
+    }),
+    bus.on("transport:seek", syncPlayhead),
+  ];
 
-  renderRuler();
-  renderTracks();
-  syncPlayhead();
-  renderLoopRegion();
+  renderAll();
+  refreshPianoRoll();
   animationFrame = requestAnimationFrame(updatePlayheadLoop);
 
-  const unsubscribeSelection = bus.on("selection:changed", renderTracks);
   return () => {
     cancelAnimationFrame(animationFrame);
-    unsubscribeSelection();
+    blockToolbar.dispose();
+    unsubscribers.forEach((unsubscribe) => unsubscribe());
   };
 }

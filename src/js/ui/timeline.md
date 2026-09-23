@@ -1,15 +1,26 @@
 # timeline.js
 
-The main DAW view: transport controls (play/pause/stop, tempo, beats-per-bar, metronome toggle), horizontal zoom (pixels-per-beat, 10–120) and vertical zoom (track row height, 40–120px), an "+ Track" button, and per-track lanes where clicking empty space adds a fixed-length block and dragging a block moves it (pointer-drag on the block body) or resizes it (drag the right-edge handle) — both snapped to quarter-beat via `snapBeat`. A red playhead tracks [transport.js](../core/transport.md)'s `getPositionBeats()`, positioned with a CSS `transform` rather than triggering a re-render.
+The main arrangement view. `renderTimeline(container, project)` builds, top to bottom:
 
-`syncPlayhead()` is called both from a `requestAnimationFrame` loop (for smooth motion while actually playing) and synchronously from every transport/zoom control's own click/input handler. The synchronous calls matter beyond the obvious (instant feedback on pause/stop/zoom without waiting for the next frame) — `requestAnimationFrame` callbacks are throttled to zero in a backgrounded/non-painting tab by design, so relying on the rAF loop alone would leave the playhead stuck at a stale position under those conditions.
+1. The [transport bar](./transportBar.md).
+2. A view bar: "+ Track", horizontal zoom (6–160 px/beat) and vertical zoom (40–160px rows).
+3. The [block toolbar](./blockToolbar.md) (selected-block actions, including transpose).
+4. The scrolling grid: ruler, track rows, loop overlay, playhead.
+5. The piano-roll panel ([pianoRoll.js](./pianoRoll.md)).
 
-**Rendering strategy:** structural changes (add/remove track or block, zoom change, beats-per-bar change) call `renderTracks()`/`renderRuler()`, which wipe and rebuild the DOM for the tracks/ruler — simple and correct for the data volumes expected at this phase, not optimized for large projects (that's a Phase 11 performance concern if it becomes one). The playhead is the one thing updated every frame, and deliberately bypasses full re-render for that reason.
+It returns a disposer (cancels the rAF loop and unsubscribes).
 
-**Coupling to watch:** `TRACK_HEADER_WIDTH` (120) must match the `.timeline-track-header` width in `main.css` — the ruler's `margin-left` and the playhead's base `left` both need to line up with where the lanes actually start. If you resize the header column in CSS, update the constant here too.
+**Interactions:**
+- Track header: click to select the track (live input plays it), double-click the name to rename (input: Enter/blur commits, Esc cancels), "×" to remove (asks first if the track has blocks). Headers are `position: sticky` so they stay visible while scrolling horizontally.
+- Lane: click empty space to select the track and deselect the block. **Double-click** to add a one-bar block at the clicked bar. Single click used to add blocks, which made every stray click create one.
+- Block: pointerdown selects it. Drag to move (snaps to ¼ beat, or whole beats below 20 px/beat) and drag vertically to move it to another track. The track change is only previewed with `translateY` until release, because re-parenting mid-drag would drop pointer capture. Drag the right edge to resize, and double-click to open the piano roll. Each block shows a miniature of its notes (`renderNotePreview`, positioned in %).
+- Ruler: click or drag to seek (`transport.seek`). It shows bar numbers plus beat ticks when zoomed in far enough.
+- Length grows with content: at least 32 bars, and always 8 bars past the last block/loop end.
 
-Double-clicking a block opens [pianoRoll.js](./pianoRoll.md) for it in a panel below the timeline (`openPianoRoll`/`pianoRollPanel`) — blocks now carry real note content, and playback of those notes is scheduled by [transportController.js](../core/transportController.md) alongside the metronome click.
+**Rendering rules:**
+- Structural changes (`renderTracks`/`renderAll`) rebuild the DOM. Selection changes only toggle classes (`highlightSelection`), since selecting happens on a block's pointerdown and a rebuild would destroy the element being dragged.
+- After a drag, a rebuild happens only if something actually changed. Rebuilding after a plain click would replace the element between the two clicks of a double-click.
+- Listens to `project:blocks-changed` (from [blockActions.js](../core/blockActions.md), or after a drag), which triggers a full redraw plus a piano-roll refresh, and to `block:notes-changed` (from the piano roll), which redraws just that block's preview.
+- `view` (zoom) and `pianoRollBlockId` are module-level, so undo/redo/import re-renders keep the zoom and reopen the piano roll on the same block id (closing it if that block is gone). `showPianoRoll` doesn't touch selection, and `openPianoRoll` also selects the block.
 
-Every track header has a remove ("×") button alongside its name; both it and "+ Track" emit `project:tracks-changed` on the [eventBus](../core/eventBus.md) after mutating `project.tracks` — [mixer.js](./mixer.md) listens for that event to keep its channel strips in sync, since track structure (add/remove) is this file's responsibility, not the mixer's.
-
-**Looping:** a checkbox plus start/end beat number inputs (`loopCheckbox`/`loopStartInput`/`loopEndInput`) mutate `project.loop` via [project.js](../core/project.md)'s setters; [transportController.js](../core/transportController.md) pushes it into the transport on `project:changed`. This file only owns the loop *controls and visual region*. `loopRegion` is a highlighted overlay (like the playhead, positioned with `transform` + explicit `top`/`height` matching `updatePlayheadExtent`'s approach) rather than part of the block/track rendering, so it doesn't get wiped by `renderTracks()`'s rebuild — `renderLoopRegion()` is called after every structural change and zoom for the same reason `updatePlayheadExtent()` is.
+**Coupling:** `TRACK_HEADER_WIDTH` (120) must match `.timeline-track-header`'s width in `main.css`. Lane gridlines come from CSS custom properties `--bar-px`/`--beat-px`, set per lane.

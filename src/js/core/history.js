@@ -1,6 +1,5 @@
 import { bus } from "./eventBus.js";
 import { replaceProjectContents } from "./project.js";
-import { resetMixer } from "../audio/audioEngine.js";
 
 const DEBOUNCE_MS = 500;
 
@@ -55,7 +54,6 @@ export function initHistory(theProject, restoreCallback) {
 function restore(snapshot) {
   isRestoring = true;
   replaceProjectContents(project, snapshot);
-  resetMixer();
   isRestoring = false;
   lastSnapshot = clone(project);
   clearTimeout(debounceTimer);

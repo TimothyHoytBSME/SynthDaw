@@ -6,7 +6,7 @@ import {
   createProject,
   addTrack,
 } from "../core/project.js";
-import { resetMixer, getPatch } from "../audio/audioEngine.js";
+import { getPatch } from "../audio/audioEngine.js";
 import { renderProjectToBuffer } from "../audio/exportRender.js";
 import { audioBufferToWavBlob } from "../audio/wavEncoder.js";
 import { undo, redo, canUndo, canRedo } from "../core/history.js";
@@ -50,7 +50,6 @@ export function renderProjectControls(container, project, onReplaced) {
     }
     replaceProjectContents(project, createProject());
     addTrack(project, { name: "Track 1" });
-    resetMixer();
     onReplaced();
   });
 
@@ -91,7 +90,6 @@ export function renderProjectControls(container, project, onReplaced) {
     try {
       const imported = parseProject(await file.text());
       replaceProjectContents(project, imported);
-      resetMixer();
       onReplaced();
     } catch (error) {
       window.alert(`Could not import project: ${error.message}`);

@@ -1,15 +1,13 @@
 import { EFFECT_TYPES } from "./effectTypes.js";
 
-let idCounter = 0;
-
-function nextStageId() {
-  idCounter += 1;
-  return `stage-${idCounter}`;
+function structureSignature(descriptors) {
+  return descriptors.map((descriptor) => `${descriptor.id}:${descriptor.type}`).join("|");
 }
 
 export function createEffectChain(audioContext, destination) {
   const headInput = audioContext.createGain();
-  const stages = [];
+  let stages = [];
+  let signature = "";
 
   function rewire() {
     headInput.disconnect();
@@ -27,47 +25,61 @@ export function createEffectChain(audioContext, destination) {
     current.connect(destination);
   }
 
+  function disposeStages() {
+    for (const stage of stages) {
+      stage.node.dispose();
+    }
+    stages = [];
+  }
+
+  function rebuild(descriptors) {
+    disposeStages();
+    stages = descriptors.map((descriptor) => ({
+      node: EFFECT_TYPES[descriptor.type].create(audioContext, { ...descriptor.params }),
+      params: { ...descriptor.params },
+      bypassed: descriptor.bypassed,
+    }));
+    signature = structureSignature(descriptors);
+    rewire();
+  }
+
+  // Applies only what differs between each stage and its descriptor, so a slider drag is a
+  // cheap setParam call instead of tearing down and recreating every node in the chain.
+  function applyDiffs(descriptors) {
+    let needsRewire = false;
+    stages.forEach((stage, index) => {
+      const descriptor = descriptors[index];
+      if (stage.bypassed !== descriptor.bypassed) {
+        stage.bypassed = descriptor.bypassed;
+        needsRewire = true;
+      }
+      for (const [name, value] of Object.entries(descriptor.params)) {
+        if (stage.params[name] !== value) {
+          stage.params[name] = value;
+          stage.node.setParam(name, value);
+        }
+      }
+    });
+    if (needsRewire) {
+      rewire();
+    }
+  }
+
   rewire();
 
   return {
     input: headInput,
-    addEffect(type, params) {
-      const definition = EFFECT_TYPES[type];
-      const node = definition.create(audioContext, { ...params });
-      const stage = { id: nextStageId(), type, node, bypassed: false };
-      stages.push(stage);
-      rewire();
-      return stage.id;
-    },
-    removeEffect(stageId) {
-      const index = stages.findIndex((stage) => stage.id === stageId);
-      if (index === -1) {
-        return;
+    // `descriptors` is the plain-data effect list from the project (`[{ id, type, params, bypassed }]`).
+    sync(descriptors) {
+      if (structureSignature(descriptors) === signature) {
+        applyDiffs(descriptors);
+      } else {
+        rebuild(descriptors);
       }
-      stages[index].node.dispose();
-      stages.splice(index, 1);
-      rewire();
-    },
-    setBypass(stageId, bypassed) {
-      const stage = stages.find((s) => s.id === stageId);
-      if (!stage) {
-        return;
-      }
-      stage.bypassed = bypassed;
-      rewire();
-    },
-    setParam(stageId, name, value) {
-      stages.find((s) => s.id === stageId)?.node.setParam(name, value);
-    },
-    getStageIds() {
-      return stages.map((stage) => stage.id);
     },
     dispose() {
       headInput.disconnect();
-      for (const stage of stages) {
-        stage.node.dispose();
-      }
-      stages.length = 0;
+      disposeStages();
     },
   };
 }

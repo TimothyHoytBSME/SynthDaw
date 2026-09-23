@@ -6,6 +6,7 @@ const STEAL_RELEASE = true;
 export function createSynthEngine(audioContext, destination) {
   let patch = null;
   const activeVoices = new Map();
+  const scheduledVoices = new Set();
   let voiceOrder = 0;
 
   function stealOldestVoice() {
@@ -59,6 +60,16 @@ export function createSynthEngine(audioContext, destination) {
       const voice = createVoice(audioContext, destinationOverride ?? destination, note, velocity, patch);
       voice.start(startTime);
       voice.stop(false, startTime + durationSeconds);
+      scheduledVoices.add(voice);
+      voice.onEnded(() => scheduledVoices.delete(voice));
+    },
+    // Silences every sequenced voice — sounding or still waiting to start — with a short
+    // fade, for when the transport stops/pauses/seeks and what was scheduled is now wrong.
+    cancelScheduled() {
+      for (const voice of scheduledVoices) {
+        voice.stop(true);
+      }
+      scheduledVoices.clear();
     },
   };
 }

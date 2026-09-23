@@ -11,6 +11,10 @@ function notifyChanged() {
   bus.emit("project:changed", {});
 }
 
+const MIN_LENGTH_BEATS = 0.25;
+export const MIN_TEMPO = 20;
+export const MAX_TEMPO = 300;
+
 export function createProject() {
   return {
     tempo: 120,
@@ -21,16 +25,36 @@ export function createProject() {
   };
 }
 
+function createTrackDefaults() {
+  return { blocks: [], volume: 1, pan: 0, muted: false, soloed: false, effects: [] };
+}
+
+// Fills in any field missing from project data that came from outside this session (an older
+// autosave, a hand-edited import), so the rest of the app can assume the full current shape.
+export function normalizeProject(project) {
+  const defaults = createProject();
+  project.tempo ??= defaults.tempo;
+  project.timeSignature = { ...defaults.timeSignature, ...project.timeSignature };
+  project.master = { ...defaults.master, ...project.master };
+  project.loop = { ...defaults.loop, ...project.loop };
+  project.tracks ??= [];
+  project.tracks.forEach((track, index) => {
+    Object.assign(track, { ...createTrackDefaults(), name: `Track ${index + 1}`, ...track });
+    for (const block of track.blocks) {
+      block.notes ??= [];
+      for (const note of block.notes) {
+        note.velocity ??= 100;
+      }
+    }
+  });
+  return project;
+}
+
 export function addTrack(project, { name } = {}) {
   const track = {
     id: nextId("track"),
     name: name ?? `Track ${project.tracks.length + 1}`,
-    blocks: [],
-    volume: 1,
-    pan: 0,
-    muted: false,
-    soloed: false,
-    effects: [],
+    ...createTrackDefaults(),
   };
   project.tracks.push(track);
   notifyChanged();
@@ -54,14 +78,22 @@ export function removeBlock(track, blockId) {
   notifyChanged();
 }
 
-export function moveBlock(block, newStartBeat) {
-  block.startBeat = Math.max(0, newStartBeat);
+// Setter helper for the drag-driven mutators below: pointermove fires far more often than the
+// snapped value actually changes, and every notifyChanged() costs an autosave/undo/audio sync.
+function setIfChanged(object, key, value) {
+  if (object[key] === value) {
+    return;
+  }
+  object[key] = value;
   notifyChanged();
 }
 
+export function moveBlock(block, newStartBeat) {
+  setIfChanged(block, "startBeat", Math.max(0, newStartBeat));
+}
+
 export function resizeBlock(block, newLengthBeats) {
-  block.lengthBeats = Math.max(0.25, newLengthBeats);
-  notifyChanged();
+  setIfChanged(block, "lengthBeats", Math.max(MIN_LENGTH_BEATS, newLengthBeats));
 }
 
 export function addNote(block, { note, startBeat, lengthBeats = 1, velocity = 100 }) {
@@ -83,13 +115,19 @@ export function removeNote(block, noteId) {
 }
 
 export function moveNote(note, newStartBeat) {
-  note.startBeat = Math.max(0, newStartBeat);
-  notifyChanged();
+  setIfChanged(note, "startBeat", Math.max(0, newStartBeat));
 }
 
 export function resizeNote(note, newLengthBeats) {
-  note.lengthBeats = Math.max(0.25, newLengthBeats);
-  notifyChanged();
+  setIfChanged(note, "lengthBeats", Math.max(MIN_LENGTH_BEATS, newLengthBeats));
+}
+
+export function setTempo(project, bpm) {
+  setIfChanged(project, "tempo", Math.min(MAX_TEMPO, Math.max(MIN_TEMPO, bpm)));
+}
+
+export function setBeatsPerBar(project, beatsPerBar) {
+  setIfChanged(project.timeSignature, "beatsPerBar", Math.max(1, Math.round(beatsPerBar)));
 }
 
 export function setMasterVolume(project, value) {
@@ -104,7 +142,7 @@ export function setLoopEnabled(project, enabled) {
 
 export function setLoopRange(project, startBeat, endBeat) {
   project.loop.startBeat = Math.max(0, startBeat);
-  project.loop.endBeat = Math.max(project.loop.startBeat + 0.25, endBeat);
+  project.loop.endBeat = Math.max(project.loop.startBeat + MIN_LENGTH_BEATS, endBeat);
   notifyChanged();
 }
 
@@ -161,6 +199,28 @@ export function moveEffect(effectsOwner, effectId, newIndex) {
   notifyChanged();
 }
 
+// Every note that should actually sound, in absolute project beats. A block is a window onto
+// its notes: anything starting at/after the block's end is silent, and anything running past
+// it is cut off there — so shrinking a block hides content non-destructively.
+export function* playableNotes(project) {
+  for (const track of project.tracks) {
+    for (const block of track.blocks) {
+      for (const note of block.notes) {
+        if (note.startBeat >= block.lengthBeats) {
+          continue;
+        }
+        yield {
+          track,
+          note: note.note,
+          velocity: note.velocity,
+          startBeat: block.startBeat + note.startBeat,
+          lengthBeats: Math.min(note.lengthBeats, block.lengthBeats - note.startBeat),
+        };
+      }
+    }
+  }
+}
+
 export function serializeProject(project) {
   return JSON.stringify(project, null, 2);
 }
@@ -179,6 +239,7 @@ export function replaceProjectContents(target, source) {
   target.tracks = cloned.tracks;
   target.master = cloned.master;
   target.loop = cloned.loop;
+  normalizeProject(target);
   syncIdCounter(target);
   notifyChanged();
 }

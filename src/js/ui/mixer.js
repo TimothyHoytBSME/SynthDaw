@@ -1,6 +1,5 @@
 import { bus } from "../core/eventBus.js";
 import { EFFECT_TYPES, defaultParamsFor } from "../audio/effectTypes.js";
-import { getMixer } from "../audio/audioEngine.js";
 import {
   setTrackVolume,
   setTrackPan,
@@ -13,7 +12,7 @@ import {
   setEffectBypass,
 } from "../core/project.js";
 
-function renderEffectsSection(container, effectsOwner, onEffectsChanged) {
+function renderEffectsSection(container, effectsOwner) {
   container.innerHTML = "";
 
   const addRow = document.createElement("div");
@@ -30,8 +29,7 @@ function renderEffectsSection(container, effectsOwner, onEffectsChanged) {
   addButton.textContent = "+ Effect";
   addButton.addEventListener("click", () => {
     addEffect(effectsOwner, select.value, defaultParamsFor(select.value));
-    onEffectsChanged();
-    renderEffectsSection(container, effectsOwner, onEffectsChanged);
+    renderEffectsSection(container, effectsOwner);
   });
   addRow.append(select, addButton);
   container.appendChild(addRow);
@@ -54,7 +52,6 @@ function renderEffectsSection(container, effectsOwner, onEffectsChanged) {
     bypassCheckbox.checked = effect.bypassed;
     bypassCheckbox.addEventListener("change", () => {
       setEffectBypass(effect, bypassCheckbox.checked);
-      onEffectsChanged();
     });
     bypassLabel.append(bypassCheckbox, " bypass");
     header.appendChild(bypassLabel);
@@ -64,8 +61,7 @@ function renderEffectsSection(container, effectsOwner, onEffectsChanged) {
     removeButton.textContent = "×";
     removeButton.addEventListener("click", () => {
       removeEffect(effectsOwner, effect.id);
-      onEffectsChanged();
-      renderEffectsSection(container, effectsOwner, onEffectsChanged);
+      renderEffectsSection(container, effectsOwner);
     });
     header.appendChild(removeButton);
 
@@ -85,9 +81,7 @@ function renderEffectsSection(container, effectsOwner, onEffectsChanged) {
       input.step = String(paramDef.step);
       input.value = String(effect.params[paramDef.name]);
       input.addEventListener("input", () => {
-        const value = Number(input.value);
-        setEffectParam(effect, paramDef.name, value);
-        onEffectsChanged();
+        setEffectParam(effect, paramDef.name, Number(input.value));
       });
       fieldLabel.appendChild(input);
       row.appendChild(fieldLabel);
@@ -97,7 +91,7 @@ function renderEffectsSection(container, effectsOwner, onEffectsChanged) {
   }
 }
 
-function renderTrackStrip(project, track) {
+function renderTrackStrip(track) {
   const strip = document.createElement("div");
   strip.className = "mixer-strip";
 
@@ -117,7 +111,6 @@ function renderTrackStrip(project, track) {
   volumeInput.value = String(track.volume);
   volumeInput.addEventListener("input", () => {
     setTrackVolume(track, Number(volumeInput.value));
-    getMixer().syncTrackGains(project);
   });
   volumeLabel.appendChild(volumeInput);
   strip.appendChild(volumeLabel);
@@ -133,7 +126,6 @@ function renderTrackStrip(project, track) {
   panInput.value = String(track.pan);
   panInput.addEventListener("input", () => {
     setTrackPan(track, Number(panInput.value));
-    getMixer().syncTrackGains(project);
   });
   panLabel.appendChild(panInput);
   strip.appendChild(panLabel);
@@ -148,7 +140,6 @@ function renderTrackStrip(project, track) {
   muteButton.addEventListener("click", () => {
     setTrackMuted(track, !track.muted);
     muteButton.classList.toggle("mixer-toggle--active", track.muted);
-    getMixer().syncTrackGains(project);
   });
   toggles.appendChild(muteButton);
 
@@ -159,7 +150,6 @@ function renderTrackStrip(project, track) {
   soloButton.addEventListener("click", () => {
     setTrackSoloed(track, !track.soloed);
     soloButton.classList.toggle("mixer-toggle--active", track.soloed);
-    getMixer().syncTrackGains(project);
   });
   toggles.appendChild(soloButton);
 
@@ -167,8 +157,7 @@ function renderTrackStrip(project, track) {
 
   const effectsContainer = document.createElement("div");
   effectsContainer.className = "mixer-effects";
-  const onEffectsChanged = () => getMixer().syncTrackEffects(track);
-  renderEffectsSection(effectsContainer, track, onEffectsChanged);
+  renderEffectsSection(effectsContainer, track);
   strip.appendChild(effectsContainer);
 
   return strip;
@@ -193,17 +182,14 @@ function renderMasterStrip(project) {
   volumeInput.step = "0.01";
   volumeInput.value = String(project.master.volume);
   volumeInput.addEventListener("input", () => {
-    const value = Number(volumeInput.value);
-    setMasterVolume(project, value);
-    getMixer().syncMasterVolume(value);
+    setMasterVolume(project, Number(volumeInput.value));
   });
   volumeLabel.appendChild(volumeInput);
   strip.appendChild(volumeLabel);
 
   const effectsContainer = document.createElement("div");
   effectsContainer.className = "mixer-effects";
-  const onEffectsChanged = () => getMixer().syncMasterEffects(project.master.effects);
-  renderEffectsSection(effectsContainer, project.master, onEffectsChanged);
+  renderEffectsSection(effectsContainer, project.master);
   strip.appendChild(effectsContainer);
 
   return strip;
@@ -215,12 +201,13 @@ export function renderMixer(container, project) {
     const strips = document.createElement("div");
     strips.className = "mixer-strips";
     for (const track of project.tracks) {
-      strips.appendChild(renderTrackStrip(project, track));
+      strips.appendChild(renderTrackStrip(track));
     }
     strips.appendChild(renderMasterStrip(project));
     container.appendChild(strips);
   }
 
-  bus.on("project:tracks-changed", render);
+  const unsubscribe = bus.on("project:tracks-changed", render);
   render();
+  return unsubscribe;
 }

@@ -44,3 +44,4 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/audio/wavEncoder.md](../src/js/audio/wavEncoder.md) | Companion doc for `src/js/audio/wavEncoder.js`, `AudioBuffer` → WAV file encoding. |
 | [src/js/core/history.md](../src/js/core/history.md) | Companion doc for `src/js/core/history.js`, snapshot-based undo/redo. |
 | [src/js/core/keyboardShortcuts.md](../src/js/core/keyboardShortcuts.md) | Companion doc for `src/js/core/keyboardShortcuts.js`, global Space/Ctrl+Z/Ctrl+Y shortcuts. |
+| [tools/devServer.md](../tools/devServer.md) | Companion doc for `tools/devServer.py`, the no-cache static dev server. |

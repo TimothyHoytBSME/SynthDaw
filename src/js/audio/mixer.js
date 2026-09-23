@@ -1,7 +1,13 @@
 import { createEffectChain } from "./effectChain.js";
 
+function setParamIfChanged(param, value) {
+  if (param.value !== value) {
+    param.value = value;
+  }
+}
+
 export function createMixer(audioContext, masterGain) {
-  let masterChain = createEffectChain(audioContext, audioContext.destination);
+  const masterChain = createEffectChain(audioContext, audioContext.destination);
   masterGain.disconnect();
   masterGain.connect(masterChain.input);
 
@@ -19,21 +25,8 @@ export function createMixer(audioContext, masterGain) {
     return trackBuses.get(trackId);
   }
 
-  function rebuildEffects(effectChain, effectDescriptors) {
-    for (const stageId of effectChain.getStageIds()) {
-      effectChain.removeEffect(stageId);
-    }
-    for (const descriptor of effectDescriptors) {
-      const stageId = effectChain.addEffect(descriptor.type, descriptor.params);
-      effectChain.setBypass(stageId, descriptor.bypassed);
-    }
-  }
-
   function disposeTrackBus(trackId) {
     const bus = trackBuses.get(trackId);
-    if (!bus) {
-      return;
-    }
     bus.effectChain.dispose();
     bus.gainNode.disconnect();
     bus.panNode.disconnect();
@@ -42,36 +35,31 @@ export function createMixer(audioContext, masterGain) {
 
   return {
     getTrackBus,
-    syncMasterVolume(value) {
-      masterGain.gain.value = value;
-    },
-    syncTrackEffects(track) {
-      rebuildEffects(getTrackBus(track.id).effectChain, track.effects);
-    },
-    syncMasterEffects(masterEffects) {
-      rebuildEffects(masterChain, masterEffects);
-    },
-    syncTrackGains(project) {
+    // Reconciles the whole audio graph against the project's plain data: disposes buses for
+    // tracks that no longer exist, creates buses for new ones, and applies volume/pan/mute/solo
+    // and effect changes. Idempotent and cheap when nothing changed, so it's safe to call after
+    // every project change (see audioEngine.js).
+    syncProject(project) {
+      const trackIds = new Set(project.tracks.map((track) => track.id));
+      for (const trackId of Array.from(trackBuses.keys())) {
+        if (!trackIds.has(trackId)) {
+          disposeTrackBus(trackId);
+        }
+      }
+
+      // Solo isn't a per-track property in isolation: soloing any track silences every
+      // non-soloed track, so all tracks' effective gains are recomputed together.
       const anySoloed = project.tracks.some((track) => track.soloed);
       for (const track of project.tracks) {
         const bus = getTrackBus(track.id);
         const silent = track.muted || (anySoloed && !track.soloed);
-        bus.gainNode.gain.value = silent ? 0 : track.volume;
-        bus.panNode.pan.value = track.pan;
+        setParamIfChanged(bus.gainNode.gain, silent ? 0 : track.volume);
+        setParamIfChanged(bus.panNode.pan, track.pan);
+        bus.effectChain.sync(track.effects);
       }
-    },
-    removeTrackBus: disposeTrackBus,
-    // Full reset for "New Project" / import: the old tracks' ids are meaningless once the
-    // project's content is wholesale-replaced, so every existing bus (and the master chain,
-    // in case it had effects) is torn down rather than trying to reconcile old vs. new ids.
-    reset() {
-      for (const trackId of Array.from(trackBuses.keys())) {
-        disposeTrackBus(trackId);
-      }
-      masterChain.dispose();
-      masterChain = createEffectChain(audioContext, audioContext.destination);
-      masterGain.disconnect();
-      masterGain.connect(masterChain.input);
+
+      setParamIfChanged(masterGain.gain, project.master.volume);
+      masterChain.sync(project.master.effects);
     },
   };
 }

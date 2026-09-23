@@ -100,5 +100,8 @@ export function createVoice(audioContext, destination, note, velocity, patch) {
       }
       lfo?.stop(stopAt);
     },
+    onEnded(callback) {
+      oscillators[0].oscillator.onended = callback;
+    },
   };
 }

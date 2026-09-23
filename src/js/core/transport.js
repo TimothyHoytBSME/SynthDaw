@@ -3,7 +3,10 @@ import { bus } from "./eventBus.js";
 const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_SECONDS = 0.1;
 
-export function createTransport(audioContext, { onSchedule } = {}) {
+// `onSchedule(windowStart, windowEnd, beatToContextTime)` is called every poll with the next
+// window of beats to schedule; `onCancel()` is called whenever audio already scheduled ahead
+// becomes invalid (stop, pause, seek) so the owner can silence it.
+export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
   let tempo = 120;
   let running = false;
   let startContextTime = 0;
@@ -18,6 +21,10 @@ export function createTransport(audioContext, { onSchedule } = {}) {
 
   function loopIsValid() {
     return loop.enabled && loop.endBeat > loop.startBeat;
+  }
+
+  function isInsideLoop(beat) {
+    return beat >= loop.startBeat && beat < loop.endBeat;
   }
 
   function rawPositionBeats() {
@@ -94,7 +101,9 @@ export function createTransport(audioContext, { onSchedule } = {}) {
       if (running) {
         return;
       }
-      if (loopIsValid()) {
+      // Resume where we paused if that's inside the loop; only snap to the loop start from
+      // outside it (e.g. after Stop, which rewinds to 0).
+      if (loopIsValid() && !isInsideLoop(startBeat)) {
         startBeat = loop.startBeat;
       }
       running = true;
@@ -110,15 +119,29 @@ export function createTransport(audioContext, { onSchedule } = {}) {
       startBeat = getPositionBeats();
       running = false;
       clearTimeout(schedulerTimer);
+      onCancel?.();
       bus.emit("transport:pause", {});
     },
     stop() {
       running = false;
       clearTimeout(schedulerTimer);
       startBeat = 0;
+      onCancel?.();
       bus.emit("transport:stop", {});
     },
+    seek(beat) {
+      startBeat = Math.max(0, beat);
+      if (running) {
+        onCancel?.();
+        startContextTime = audioContext.currentTime;
+        scheduledUpToBeat = startBeat;
+      }
+      bus.emit("transport:seek", { beat: startBeat });
+    },
     setTempo(bpm) {
+      if (bpm === tempo) {
+        return;
+      }
       if (running) {
         startBeat = getPositionBeats();
         startContextTime = audioContext.currentTime;

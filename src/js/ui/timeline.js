@@ -7,6 +7,8 @@ import {
   resizeBlock,
   setLoopEnabled,
   setLoopRange,
+  setTempo,
+  setBeatsPerBar,
 } from "../core/project.js";
 import { getTransport, setMetronomeEnabled, isMetronomeEnabled } from "../core/transportController.js";
 import { renderPianoRoll } from "./pianoRoll.js";
@@ -167,10 +169,6 @@ export function renderTimeline(container, project) {
     loopRegion.style.height = `${tracksEl.offsetHeight}px`;
   }
 
-  function syncLoop() {
-    getTransport({ beatsPerBar: project.timeSignature.beatsPerBar }).setLoop(project.loop);
-    renderLoopRegion();
-  }
 
   const pianoRollPanel = document.createElement("div");
   pianoRollPanel.className = "piano-roll-panel";
@@ -316,7 +314,6 @@ export function renderTimeline(container, project) {
       removeTrackButton.addEventListener("click", () => {
         removeTrack(project, track.id);
         renderTracks();
-        bus.emit("track:removed", { trackId: track.id });
         bus.emit("project:tracks-changed", {});
       });
       header.appendChild(removeTrackButton);
@@ -348,17 +345,18 @@ export function renderTimeline(container, project) {
   }
 
   function syncPlayhead() {
-    const beat = getTransport({ beatsPerBar: project.timeSignature.beatsPerBar }).getPositionBeats();
+    const beat = getTransport().getPositionBeats();
     playhead.style.transform = `translateX(${beat * pixelsPerBeat}px)`;
   }
 
+  let animationFrame = 0;
   function updatePlayheadLoop() {
     syncPlayhead();
-    requestAnimationFrame(updatePlayheadLoop);
+    animationFrame = requestAnimationFrame(updatePlayheadLoop);
   }
 
   playButton.addEventListener("click", () => {
-    getTransport({ beatsPerBar: project.timeSignature.beatsPerBar }).play();
+    getTransport().play();
     syncPlayhead();
   });
   pauseButton.addEventListener("click", () => {
@@ -369,13 +367,13 @@ export function renderTimeline(container, project) {
     getTransport().stop();
     syncPlayhead();
   });
-  tempoInput.addEventListener("input", () => {
-    const bpm = Number(tempoInput.value) || project.tempo;
-    project.tempo = bpm;
-    getTransport().setTempo(bpm);
+  tempoInput.addEventListener("change", () => {
+    setTempo(project, Number(tempoInput.value) || project.tempo);
+    tempoInput.value = String(project.tempo);
   });
-  beatsPerBarInput.addEventListener("input", () => {
-    project.timeSignature.beatsPerBar = Number(beatsPerBarInput.value) || 4;
+  beatsPerBarInput.addEventListener("change", () => {
+    setBeatsPerBar(project, Number(beatsPerBarInput.value) || project.timeSignature.beatsPerBar);
+    beatsPerBarInput.value = String(project.timeSignature.beatsPerBar);
     renderRuler();
     renderTracks();
   });
@@ -384,17 +382,17 @@ export function renderTimeline(container, project) {
   });
   loopCheckbox.addEventListener("change", () => {
     setLoopEnabled(project, loopCheckbox.checked);
-    syncLoop();
+    renderLoopRegion();
   });
   loopStartInput.addEventListener("input", () => {
     setLoopRange(project, Number(loopStartInput.value) || 0, project.loop.endBeat);
     loopStartInput.value = String(project.loop.startBeat);
-    syncLoop();
+    renderLoopRegion();
   });
   loopEndInput.addEventListener("input", () => {
     setLoopRange(project, project.loop.startBeat, Number(loopEndInput.value) || project.loop.endBeat);
     loopEndInput.value = String(project.loop.endBeat);
-    syncLoop();
+    renderLoopRegion();
   });
   hZoomInput.addEventListener("input", () => {
     pixelsPerBeat = Number(hZoomInput.value);
@@ -415,6 +413,8 @@ export function renderTimeline(container, project) {
   renderRuler();
   renderTracks();
   syncPlayhead();
-  syncLoop();
-  requestAnimationFrame(updatePlayheadLoop);
+  renderLoopRegion();
+  animationFrame = requestAnimationFrame(updatePlayheadLoop);
+
+  return () => cancelAnimationFrame(animationFrame);
 }

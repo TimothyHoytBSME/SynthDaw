@@ -22,3 +22,8 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/ui/patchEditor.md](../src/js/ui/patchEditor.md) | Companion doc for `src/js/ui/patchEditor.js`, the live patch-parameter editing UI. |
 | [src/js/midi/midiInput.md](../src/js/midi/midiInput.md) | Companion doc for `src/js/midi/midiInput.js`, the Web MIDI device/message layer. |
 | [src/js/ui/midiStatus.md](../src/js/ui/midiStatus.md) | Companion doc for `src/js/ui/midiStatus.js`, the MIDI connection-status readout. |
+| [src/js/core/project.md](../src/js/core/project.md) | Companion doc for `src/js/core/project.js`, the Project/Track/Block data model. |
+| [src/js/core/transport.md](../src/js/core/transport.md) | Companion doc for `src/js/core/transport.js`, the audio-accurate play/pause/stop clock. |
+| [src/js/core/transportController.md](../src/js/core/transportController.md) | Companion doc for `src/js/core/transportController.js`, wires the transport to the metronome. |
+| [src/js/audio/click.md](../src/js/audio/click.md) | Companion doc for `src/js/audio/click.js`, the metronome click sound. |
+| [src/js/ui/timeline.md](../src/js/ui/timeline.md) | Companion doc for `src/js/ui/timeline.js`, the timeline/tracks/transport UI. |

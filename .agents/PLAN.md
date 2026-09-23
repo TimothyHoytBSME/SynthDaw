@@ -2,7 +2,7 @@
 
 High-level phased roadmap. Each phase should be broken into scoped tasks (and git commits) at implementation time — this file stays high-level. Update the "Status" line as phases start/finish, and log notable milestones in [LOG.md](LOG.md).
 
-**Status: Phases 0–3 complete. Phase 4 not started.**
+**Status: Phases 0–4 complete. Phase 5 not started.**
 
 ## Guiding constraints (from CLAUDE.md)
 
@@ -68,12 +68,12 @@ Settled up front so later phases don't churn on foundational choices:
 - Modulation: amp + filter ADSR envelopes, one filter (lowpass/highpass/bandpass, cutoff + resonance). **Deviation:** implemented one fixed LFO (rate/depth/target ∈ {pitch, filter}) instead of a fully generic mod matrix — see the simplification note in [patch.md](../src/js/audio/patch.md). Revisit once there's a second modulation source that would justify generic routing.
 - Patch data model: plain-JSON, UI-independent, in [patch.js](../src/js/audio/patch.md); a minimal live-editing UI ([patchEditor.js](../src/js/ui/patchEditor.md)) makes every parameter audibly testable now. A real preset browser/save-load UI is deferred.
 
-## Phase 4 — Timeline, Tracks & Transport
+## Phase 4 — Timeline, Tracks & Transport ✅ (see notes)
 
-- Project data model: Project → Tracks → Blocks/Clips, tempo map, time signature.
-- Transport controls: play/pause/stop/record, playhead, tempo & time-signature editing, click/metronome.
-- Timeline UI: track lanes, block placement/move/resize, horizontal zoom (bars → beats → samples/waveform) and vertical zoom (track height).
-- Timing engine decoupled from UI rendering (audio-accurate scheduling, not `setInterval` drift).
+- Project data model: Project → Tracks → Blocks, tempo, time signature (`beatsPerBar`). Implemented in [project.js](../src/js/core/project.md). **Deviation:** blocks are pure time regions (`startBeat`/`lengthBeats`) with no note content and no playback wiring yet — silent placeholders until Phase 5 gives them notes; only the metronome click is audible during playback right now.
+- Transport: play/pause/stop, playhead, tempo & beats-per-bar editing, click/metronome (with downbeat accent) — see [transport.js](../src/js/core/transport.md), [transportController.js](../src/js/core/transportController.md), [click.js](../src/js/audio/click.md). **Deviation:** record is not implemented (no recordable audio/MIDI-capture source exists yet — this returns once Phase 5 makes notes performable into a block).
+- Timeline UI ([timeline.js](../src/js/ui/timeline.md)): track lanes, click-to-add / drag-to-move / drag-to-resize blocks (snapped to quarter-beat), horizontal zoom (10–120 px/beat) and vertical zoom (40–120px track height). **Deviation:** zoom stops at "beats" — it doesn't yet render individual samples/waveform at extreme zoom-in, since there's no audio content in a block to draw a waveform of.
+- Timing engine: [transport.js](../src/js/core/transport.md) computes position from `AudioContext.currentTime` (never drifts) and schedules the metronome via a lookahead scheduler, fully decoupled from the UI's `requestAnimationFrame` playhead loop.
 
 ## Phase 5 — Piano Roll & MIDI Editing
 

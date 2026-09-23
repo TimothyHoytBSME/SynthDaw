@@ -1,8 +1,10 @@
 import { initAudioEngine, getPatch, setPatch } from "./audio/audioEngine.js";
 import { initMIDIInput } from "./midi/midiInput.js";
+import { createProject, addTrack } from "./core/project.js";
 import { renderPianoTrigger } from "./ui/pianoTrigger.js";
 import { renderMIDIStatus } from "./ui/midiStatus.js";
 import { renderPatchEditor } from "./ui/patchEditor.js";
+import { renderTimeline } from "./ui/timeline.js";
 
 function init() {
   initAudioEngine();
@@ -10,6 +12,10 @@ function init() {
   renderMIDIStatus(document.getElementById("midi-status"));
   renderPatchEditor(document.getElementById("patch-editor"), { getPatch, setPatch });
   initMIDIInput();
+
+  const project = createProject();
+  addTrack(project, { name: "Track 1" });
+  renderTimeline(document.getElementById("timeline"), project);
 }
 
 document.addEventListener("DOMContentLoaded", init);

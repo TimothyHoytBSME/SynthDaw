@@ -39,6 +39,15 @@ export function initAudioEngine() {
   bus.on("note:off", handleNoteOff);
 }
 
+export function ensureAudioContext() {
+  return ensureContext();
+}
+
+export function getMasterGain() {
+  ensureContext();
+  return masterGain;
+}
+
 export function getPatch() {
   return currentPatch;
 }

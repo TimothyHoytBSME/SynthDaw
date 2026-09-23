@@ -12,10 +12,13 @@ function scheduleEnvelope(param, adsr, base, peak, startTime) {
   );
 }
 
-function scheduleRelease(param, restValue, releaseSeconds, now) {
-  param.cancelScheduledValues(now);
-  param.setValueAtTime(param.value, now);
-  param.linearRampToValueAtTime(restValue, now + releaseSeconds);
+function scheduleRelease(param, restValue, releaseSeconds, atTime) {
+  // cancelAndHoldAtTime (not cancelScheduledValues + setValueAtTime(param.value, ...)) is required
+  // here: this must work correctly for releases scheduled entirely in the future (sequenced
+  // playback schedules start+stop together, well ahead of when either actually happens), where
+  // reading `param.value` synchronously would give the value at call-time, not at `atTime`.
+  param.cancelAndHoldAtTime(atTime);
+  param.linearRampToValueAtTime(restValue, atTime + releaseSeconds);
 }
 
 export function createVoice(audioContext, destination, note, velocity, patch) {
@@ -68,8 +71,8 @@ export function createVoice(audioContext, destination, note, velocity, patch) {
   const peakGain = patch.gain * (velocity / 127);
 
   return {
-    start() {
-      const startTime = audioContext.currentTime;
+    start(atTime) {
+      const startTime = atTime ?? audioContext.currentTime;
       for (const { oscillator } of oscillators) {
         oscillator.start(startTime);
       }
@@ -84,14 +87,14 @@ export function createVoice(audioContext, destination, note, velocity, patch) {
         startTime,
       );
     },
-    stop(immediate = false) {
-      const now = audioContext.currentTime;
+    stop(immediate = false, atTime) {
+      const releaseAt = atTime ?? audioContext.currentTime;
       const releaseSeconds = immediate ? TAIL_SECONDS : patch.ampEnvelope.release;
 
-      scheduleRelease(ampGain.gain, 0, releaseSeconds, now);
-      scheduleRelease(filter.frequency, patch.filter.cutoff, releaseSeconds, now);
+      scheduleRelease(ampGain.gain, 0, releaseSeconds, releaseAt);
+      scheduleRelease(filter.frequency, patch.filter.cutoff, releaseSeconds, releaseAt);
 
-      const stopAt = now + releaseSeconds + TAIL_SECONDS;
+      const stopAt = releaseAt + releaseSeconds + TAIL_SECONDS;
       for (const { oscillator } of oscillators) {
         oscillator.stop(stopAt);
       }

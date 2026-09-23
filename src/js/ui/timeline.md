@@ -8,4 +8,4 @@ The main DAW view: transport controls (play/pause/stop, tempo, beats-per-bar, me
 
 **Coupling to watch:** `TRACK_HEADER_WIDTH` (120) must match the `.timeline-track-header` width in `main.css` — the ruler's `margin-left` and the playhead's base `left` both need to line up with where the lanes actually start. If you resize the header column in CSS, update the constant here too.
 
-Blocks are currently silent placeholders — no note content and no playback wiring exists yet (blocks store only `startBeat`/`lengthBeats`); it plays a click track via [transportController.js](../core/transportController.md) but does not yet trigger the synth. That lands once blocks carry notes.
+Double-clicking a block opens [pianoRoll.js](./pianoRoll.md) for it in a panel below the timeline (`openPianoRoll`/`pianoRollPanel`) — blocks now carry real note content, and playback of those notes is scheduled by [transportController.js](../core/transportController.md) alongside the metronome click.

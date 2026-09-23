@@ -1,5 +1,6 @@
 import { addTrack, addBlock, removeBlock, moveBlock, resizeBlock } from "../core/project.js";
 import { getTransport, setMetronomeEnabled, isMetronomeEnabled } from "../core/transportController.js";
+import { renderPianoRoll } from "./pianoRoll.js";
 
 const MIN_PIXELS_PER_BEAT = 10;
 const MAX_PIXELS_PER_BEAT = 120;
@@ -119,6 +120,36 @@ export function renderTimeline(container, project) {
   playhead.style.left = `${TRACK_HEADER_WIDTH}px`;
   grid.appendChild(playhead);
 
+  const pianoRollPanel = document.createElement("div");
+  pianoRollPanel.className = "piano-roll-panel";
+  pianoRollPanel.hidden = true;
+  root.appendChild(pianoRollPanel);
+
+  function openPianoRoll(track, block) {
+    pianoRollPanel.innerHTML = "";
+    pianoRollPanel.hidden = false;
+
+    const header = document.createElement("div");
+    header.className = "piano-roll-panel-header";
+
+    const title = document.createElement("span");
+    title.textContent = `${track.name} — block @ beat ${block.startBeat}`;
+    header.appendChild(title);
+
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.textContent = "Close";
+    closeButton.addEventListener("click", () => {
+      pianoRollPanel.hidden = true;
+      pianoRollPanel.innerHTML = "";
+    });
+    header.appendChild(closeButton);
+
+    const body = document.createElement("div");
+    pianoRollPanel.append(header, body);
+    renderPianoRoll(body, block);
+  }
+
   function updatePlayheadExtent() {
     playhead.style.top = `${ruler.offsetHeight}px`;
     playhead.style.height = `${tracksEl.offsetHeight}px`;
@@ -156,7 +187,12 @@ export function renderTimeline(container, project) {
     blockEl.className = "timeline-block";
     blockEl.style.left = `${block.startBeat * pixelsPerBeat}px`;
     blockEl.style.width = `${block.lengthBeats * pixelsPerBeat}px`;
-    blockEl.title = `${track.name} block: ${block.lengthBeats} beats`;
+    blockEl.title = `${track.name} block: ${block.lengthBeats} beats, ${block.notes.length} note(s) — double-click to edit`;
+
+    blockEl.addEventListener("dblclick", (event) => {
+      event.stopPropagation();
+      openPianoRoll(track, block);
+    });
 
     const removeButton = document.createElement("button");
     removeButton.type = "button";

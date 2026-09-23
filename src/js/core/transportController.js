@@ -1,17 +1,47 @@
 import { createTransport } from "./transport.js";
 import { playClick } from "../audio/click.js";
-import { ensureAudioContext, getMasterGain } from "../audio/audioEngine.js";
+import { ensureAudioContext, getMasterGain, scheduleNote } from "../audio/audioEngine.js";
 
 let transport = null;
 let metronomeEnabled = true;
 let beatsPerBar = 4;
+let project = null;
 
-function handleClick(beat, time) {
+function beatsToSeconds(beats, tempo) {
+  return beats * (60 / tempo);
+}
+
+function scheduleMetronome(windowStart, windowEnd, beatToContextTime) {
   if (!metronomeEnabled) {
     return;
   }
-  const accented = Math.round(beat) % beatsPerBar === 0;
-  playClick(ensureAudioContext(), getMasterGain(), time, accented);
+  const firstBeat = Math.ceil(windowStart - 1e-9);
+  for (let beat = firstBeat; beat < windowEnd; beat += 1) {
+    const accented = Math.round(beat) % beatsPerBar === 0;
+    playClick(ensureAudioContext(), getMasterGain(), beatToContextTime(beat), accented);
+  }
+}
+
+function scheduleProjectNotes(windowStart, windowEnd, beatToContextTime) {
+  if (!project) {
+    return;
+  }
+  for (const track of project.tracks) {
+    for (const block of track.blocks) {
+      for (const note of block.notes) {
+        const absoluteStart = block.startBeat + note.startBeat;
+        if (absoluteStart >= windowStart && absoluteStart < windowEnd) {
+          const durationSeconds = beatsToSeconds(note.lengthBeats, transport.getTempo());
+          scheduleNote(note.note, note.velocity, beatToContextTime(absoluteStart), durationSeconds);
+        }
+      }
+    }
+  }
+}
+
+function handleSchedule(windowStart, windowEnd, beatToContextTime) {
+  scheduleMetronome(windowStart, windowEnd, beatToContextTime);
+  scheduleProjectNotes(windowStart, windowEnd, beatToContextTime);
 }
 
 export function getTransport({ beatsPerBar: bpb } = {}) {
@@ -19,9 +49,13 @@ export function getTransport({ beatsPerBar: bpb } = {}) {
     beatsPerBar = bpb;
   }
   if (!transport) {
-    transport = createTransport(ensureAudioContext(), { onClick: handleClick });
+    transport = createTransport(ensureAudioContext(), { onSchedule: handleSchedule });
   }
   return transport;
+}
+
+export function setProject(nextProject) {
+  project = nextProject;
 }
 
 export function setMetronomeEnabled(enabled) {

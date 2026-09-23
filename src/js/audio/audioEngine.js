@@ -56,3 +56,8 @@ export function setPatch(nextPatch) {
   currentPatch = nextPatch;
   synthEngine?.setPatch(currentPatch);
 }
+
+export function scheduleNote(note, velocity, startTime, durationSeconds) {
+  ensureContext();
+  synthEngine.scheduleNote(note, velocity, startTime, durationSeconds);
+}

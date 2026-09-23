@@ -3,12 +3,12 @@ import { bus } from "./eventBus.js";
 const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_SECONDS = 0.1;
 
-export function createTransport(audioContext, { onClick } = {}) {
+export function createTransport(audioContext, { onSchedule } = {}) {
   let tempo = 120;
   let running = false;
   let startContextTime = 0;
   let startBeat = 0;
-  let nextClickBeat = 0;
+  let scheduledUpToBeat = 0;
   let schedulerTimer = null;
 
   function beatsToSeconds(beats) {
@@ -26,13 +26,11 @@ export function createTransport(audioContext, { onClick } = {}) {
     return startContextTime + beatsToSeconds(beat - startBeat);
   }
 
-  function scheduleClicks() {
+  function poll() {
     const horizonBeat = getPositionBeats() + (SCHEDULE_AHEAD_SECONDS * tempo) / 60;
-    while (nextClickBeat < horizonBeat) {
-      onClick?.(nextClickBeat, beatToContextTime(nextClickBeat));
-      nextClickBeat += 1;
-    }
-    schedulerTimer = setTimeout(scheduleClicks, LOOKAHEAD_MS);
+    onSchedule?.(scheduledUpToBeat, horizonBeat, beatToContextTime);
+    scheduledUpToBeat = horizonBeat;
+    schedulerTimer = setTimeout(poll, LOOKAHEAD_MS);
   }
 
   return {
@@ -42,8 +40,8 @@ export function createTransport(audioContext, { onClick } = {}) {
       }
       running = true;
       startContextTime = audioContext.currentTime;
-      nextClickBeat = Math.ceil(startBeat - 1e-9);
-      scheduleClicks();
+      scheduledUpToBeat = startBeat;
+      poll();
       bus.emit("transport:play", {});
     },
     pause() {
@@ -73,6 +71,7 @@ export function createTransport(audioContext, { onClick } = {}) {
       return tempo;
     },
     getPositionBeats,
+    beatToContextTime,
     isRunning() {
       return running;
     },

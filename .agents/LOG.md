@@ -101,4 +101,4 @@ Chronological history of notable actions taken by any agent in this project. App
 - Took this out of plan order (ahead of Phase 7 and Phase 11) since it had no blocking dependency, unlike either of those.
 - Deviations documented in `PLAN.md`: theming and onboarding/first-run guidance are not done — plain remaining work, not a deliberate scope cut.
 - Why: High value, well-scoped, and immediately usable — mistakes while editing a timeline/piano-roll are common, and losing them without undo would be a real usability gap.
-- Commit(s): (pending)
+- Commit(s): 168db80

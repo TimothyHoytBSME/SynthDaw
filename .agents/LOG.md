@@ -91,4 +91,4 @@ Chronological history of notable actions taken by any agent in this project. App
 - Took this out of plan order, ahead of Phase 7, for the same reason as Phase 8's looping: "fully-responsive... rely heavily on mouse/touch input... ideally android too" is an explicit concept requirement, while Phase 7 has no audio content yet to act on.
 - Deviations documented in `PLAN.md`: no custom pinch-to-zoom gesture (the existing zoom sliders already work by touch and cover the need without custom multi-touch code); piano-roll note controls remain the most cramped element in the app since fixing that properly needs a zoom control the piano roll doesn't have; no physical Android device available to test, so MIDI+touch coexistence is verified by architecture (Web MIDI is independent of pointer/touch code) rather than on real hardware.
 - Why: Explicit concept requirement, and a concrete usability gap (measured, not assumed) worth fixing before adding more surface area in Phase 7 or beyond.
-- Commit(s): (pending)
+- Commit(s): 7d21d3d

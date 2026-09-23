@@ -2,7 +2,7 @@
 
 High-level phased roadmap. Each phase should be broken into scoped tasks (and git commits) at implementation time — this file stays high-level. Update the "Status" line as phases start/finish, and log notable milestones in [LOG.md](LOG.md).
 
-**Status: Phases 0–6, 9, and 10 complete. Phase 8 (looping) and Phase 12 (undo/redo + shortcuts) partially complete. Phase 7 and the rest of Phase 8/12 not started. Phase 11 (cross-platform validation) is on hold indefinitely per explicit instruction — this environment can't test Linux/Android/other-device Chrome anyway, and it's not blocking use of the app on the one platform (Windows Chrome) that can be tested here.**
+**Status: Phases 0–6, 9, and 10 complete. Phase 8 (looping) and Phase 12 (undo/redo + shortcuts) partially complete. A second full review (2026-09-22, see "Second review" below) found correctness bugs and major usability gaps; Phases 13–17 were added to fix them and are the current work. Phase 7 and the remaining Phase 8/12 items are now in the Backlog. Phase 11 (cross-platform validation) is on hold indefinitely per explicit instruction — this environment can't test Linux/Android/other-device Chrome anyway, and it's not blocking use of the app on the one platform (Windows Chrome) that can be tested here.**
 
 ## Guiding constraints (from CLAUDE.md)
 
@@ -137,6 +137,89 @@ Put on hold by explicit instruction (2026-09-22). Not a technical blocker — th
 - ✅ Undo/redo ([history.js](../src/js/core/history.md)): snapshot-based, built entirely on the plain-JSON project model from Phase 9 rather than per-action command objects. Debounces rapid-fire changes (500ms) so one drag gesture is one undo step, not dozens — verified in-browser with a real 8-step simulated drag collapsing into exactly one undo. Wired into [projectControls.js](../src/js/ui/projectControls.md) as Undo/Redo buttons that disable themselves correctly via a `history:changed` event.
 - ✅ Keyboard shortcuts ([keyboardShortcuts.js](../src/js/core/keyboardShortcuts.md)): Space (play/pause), Ctrl/Cmd+Z (undo), Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y (redo) — all correctly suppressed while a text/number input has focus (verified: Space while the tempo field is focused does not toggle playback).
 - ❌ Not done: theming (only the one dark theme exists) and onboarding/first-run guidance (no tutorial or empty-state help text) — both are pure UI polish with no functional dependency on anything else, genuinely just not gotten to yet, unlike the other deviations in this plan which reflect deliberate scope calls.
+
+## Second review (2026-09-22)
+
+A full read of every source file plus the running app. Phases 1–12 built a lot of surface area, but several parts don't actually work together, and the core editing workflow is thin. Findings, grouped by severity:
+
+**Correctness bugs (the app does the wrong thing today):**
+
+1. **Saved mixer state is never applied to audio.** On load, undo/redo and import, track volume/pan/mute/solo, track effects, master volume and master effects all show in the UI but the audio graph ignores them until each control is touched again. Undo even *drops* every effect from the audio, because `resetMixer()` tears the buses down and nothing rebuilds them.
+2. **Moving an effect slider rebuilds the whole chain on every input event.** `onEffectsChanged` → `syncTrackEffects` disposes and recreates every effect node. Dragging a Reverb slider regenerates its impulse response dozens of times a second, which glitches audio. It should be a plain `setParam`.
+3. **Tempo and beats-per-bar edits skip `project.js`.** The UI writes `project.tempo` directly, with no `project:changed`. That makes them non-undoable, and they're only saved if something else happens to trigger a save. The transport's tempo also never gets synced *from* the project, so a saved 90 BPM project plays at 120.
+4. **The synth patch isn't part of the project.** It lives in a module global in `audioEngine.js`, so it's lost on reload, left out of Export JSON, and can't be undone.
+5. **Stop/Pause don't silence sequenced notes.** Anything already scheduled keeps sounding for its full length (a 4-beat note rings on for 2s after Stop at 120 BPM).
+6. **Pause → Play with the loop enabled jumps back to the loop start** instead of resuming from where it paused.
+7. **Notes outside a block's bounds still play and export.** Shrinking a block doesn't clip its content.
+8. **Re-rendering leaks.** Every undo/redo/import calls `renderTimeline`/`renderMixer` again. Each call stacks another `project:tracks-changed` listener and another `requestAnimationFrame` loop that is never cancelled.
+9. **Computer-keyboard notes fire even while a form field has focus, or with Ctrl/Cmd held.** Ctrl+D would play a note, for example. This is mostly latent today because there are no text fields yet, but track rename will add one.
+
+**Major usability gaps:**
+
+- Blocks are opaque blue rectangles, with no preview of the notes inside them.
+- The piano roll covers only 3 octaves (C3–B5). Notes can't be dragged to a new pitch, only sideways. There's no zoom, no grid choice and no velocity editing.
+- Nothing can be selected, duplicated or transposed. Blocks can't move between tracks, tracks can't be renamed, and clicking the ruler doesn't seek.
+- The timeline is a fixed 32 bars.
+- Every track shares one instrument, and live MIDI/keyboard input skips track routing entirely (a deviation flagged in Phase 6).
+- MIDI CC and pitch-bend events are parsed and emitted, but nothing consumes them, so controller sliders/knobs/wheels do nothing. For a MIDI-centric DAW this is a core gap.
+- Transport "record" has never existed, so you can't play a part in.
+- The patch editor is a flat list of 21 unlabeled sliders with no value readouts and no presets. Osc 1 detune isn't exposed, and LFO depth uses one 0–50 range for both "cents" and "Hz", which makes the filter target useless.
+- The visual on-screen piano at the bottom of the page is redundant now that there's a piano roll and MIDI (removal requested).
+
+### Phase 13 — Correctness & model/audio sync
+
+- **The audio follows the model, from one place.** `audioEngine.js` attaches to the project and re-syncs the mixer on `project:changed`, coalesced per microtask. `mixer.syncProject(project)` reconciles buses by track id (creates, updates, disposes) and effect chains by effect id/type (it rebuilds only when the chain's structure changes; otherwise it applies param and bypass diffs through `setParam`). Remove the scattered `getMixer().sync*` calls in the UI, `resetMixer()`, and the `track:removed` event. Fixes #1, #2.
+- **Transport follows the model too.** `transportController.js` syncs tempo, loop and beats-per-bar from the project on attach and on every change. New `setTempo`/`setBeatsPerBar` mutators in `project.js`. Fixes #3.
+- `normalizeProject()` in `project.js` fills defaults for any missing field (older saves, hand-edited imports). It runs on load and import.
+- `synthEngine` tracks the voices it has scheduled. The transport's stop/pause/seek cancel them (quick release). Fixes #5.
+- Transport resumes from the paused position if that position is inside the loop, and only snaps to the loop start otherwise. Fixes #6.
+- The sequencer and WAV export clip notes to their block's bounds. Fixes #7.
+- `renderTimeline`/`renderMixer` return a `dispose()` that unsubscribes and cancels rAF; `main.js` disposes before it re-renders. Fixes #8.
+
+### Phase 14 — Per-track instruments & live input routing
+
+- Each track owns a `patch` (plain JSON, persisted, undoable, exported). `synthEngine` takes the patch per note instead of holding a global one. Export WAV renders each track with its own patch. Fixes #4.
+- A **selected track** (`core/selection.js`, UI state, not persisted). Clicking a track header selects it. Live input (MIDI + computer keyboard + piano-roll previews) plays through the selected track's patch *and* its mixer bus, so live notes get that track's effects/volume/pan. Resolves the Phase 5/6 deviation.
+- The patch editor edits the selected track's patch. It's organized into sections (Oscillators, Filter, Amp envelope, Filter envelope, LFO, Output), with a live value readout on every slider. Adds Osc 1 detune and a per-oscillator octave (−3…+3). LFO depth becomes a normalized 0–1 amount that the voice scales per target (pitch → cents, filter → Hz, amp → tremolo), and a new **amp** target (tremolo) is added.
+- Built-in presets (`audio/presets.js`): a handful of from-scratch starting points (init, lead, pad, pluck, bass, keys) in a dropdown. Loading one replaces the track's patch and is undoable.
+
+### Phase 15 — Timeline editing essentials
+
+- **Remove the on-screen piano** (explicit request). Computer-keyboard note input stays, since it's the only instrument when no MIDI device is connected. It moves to `ui/computerKeyboard.js`, gains Z/X octave shift, and ignores keys while typing in a field or with modifier keys held (fixes #9).
+- **Block selection** (click). A selected-block toolbar offers Edit notes (touch-friendly alternative to double-click), Duplicate, Delete, **Transpose by X octaves up/down** (numeric octave count + ▲/▼), and ±1 semitone. Transposition is all-or-nothing: if any note would leave MIDI range 0–127, nothing changes and the toolbar says why. Keyboard: Delete/Backspace, Ctrl/Cmd+D, ↑/↓ (semitone), Shift+↑/↓ (octave), Esc (deselect).
+- Blocks render a miniature of their notes, so content (and transposition) is visible at a glance.
+- Drag a block vertically to move it to another track.
+- Click the ruler to seek; the ruler shows beat ticks as well as bar numbers.
+- Double-click a track name to rename it. The selected track is highlighted.
+- Timeline length grows with content (always at least 8 bars past the last block, minimum 32).
+- Transport UI split out of `timeline.js` into `ui/transportBar.js`, and the selected-block toolbar into `ui/blockToolbar.js`, to keep files focused.
+
+### Phase 16 — Piano roll upgrade
+
+- Full MIDI range (0–127), auto-scrolled on open to the block's notes (or middle C when empty). Black-key rows are shaded in the grid.
+- Drag notes vertically to change pitch, previewing each new pitch as you go. Notes stay clamped inside the block.
+- Horizontal zoom and a snap-grid selector (1, 1/2, 1/4, 1/8, 1/16 beat). New notes use the last length you placed or resized to.
+- Velocity lane under the grid: drag a note's bar to set its velocity. Note opacity reflects velocity.
+- Clicking a key in the key column previews that pitch, which replaces the removed on-screen piano's "audition a note" role.
+- Content beyond the block's end (after shrinking a block) is shown shaded, not deleted. It doesn't play, per #7.
+- The piano roll stays open across undo/redo (it reopens on the same block id if it still exists).
+
+### Phase 17 — MIDI performance: record, pitch bend, CC learn
+
+- **Record**: a transport Record button that plays and captures live notes (MIDI/computer keyboard) on the selected track. On stop, the take becomes a new block, bar-aligned around the played notes, with optional quantize-to-grid. Loop recording layers takes into the loop region.
+- **Pitch bend** applied to live voices (±2 semitones). New voices start at the current bend.
+- **MIDI learn** for patch parameters: click a slider's "learn" button, move a controller knob/slider, and that CC now drives the parameter (scaled to the slider's range) on whatever track is selected. The mappings describe the user's hardware, not a project, so they persist in `localStorage` (`core/midiMap.js`) and not in the project.
+
+### Backlog (not in the current pass)
+
+- Phase 7: automation lanes, and a waveform view once there's bounced/rendered audio to show.
+- Send/aux buses; drag-to-reorder effects (`moveEffect` exists, no UI).
+- Clipboard copy/paste of blocks/notes, multi-select, note selection + bulk edits (transpose/quantize selected notes only).
+- Custom/wavetable oscillators, noise oscillator, unison, glide, a generic mod matrix.
+- Arrangement markers/sections, playhead auto-follow scroll, pinch-to-zoom.
+- Theming, onboarding/first-run help, multiple named saved projects.
+- Recording latency compensation, count-in.
+- Phase 11 (cross-platform/perf/a11y), still on hold.
 
 ## Ongoing, every phase
 

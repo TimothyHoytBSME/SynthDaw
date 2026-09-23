@@ -1,4 +1,13 @@
-import { addTrack, removeTrack, addBlock, removeBlock, moveBlock, resizeBlock } from "../core/project.js";
+import {
+  addTrack,
+  removeTrack,
+  addBlock,
+  removeBlock,
+  moveBlock,
+  resizeBlock,
+  setLoopEnabled,
+  setLoopRange,
+} from "../core/project.js";
 import { getTransport, setMetronomeEnabled, isMetronomeEnabled } from "../core/transportController.js";
 import { renderPianoRoll } from "./pianoRoll.js";
 import { bus } from "../core/eventBus.js";
@@ -84,6 +93,29 @@ export function renderTimeline(container, project) {
   vZoomInput.value = String(trackHeight);
   vZoomLabel.appendChild(vZoomInput);
 
+  const loopLabel = document.createElement("label");
+  loopLabel.className = "transport-field";
+  const loopCheckbox = document.createElement("input");
+  loopCheckbox.type = "checkbox";
+  loopCheckbox.checked = project.loop.enabled;
+  loopLabel.append(loopCheckbox, " Loop");
+
+  const loopStartInput = document.createElement("input");
+  loopStartInput.type = "number";
+  loopStartInput.min = "0";
+  loopStartInput.step = "0.25";
+  loopStartInput.value = String(project.loop.startBeat);
+  loopStartInput.className = "loop-range-input";
+
+  const loopEndInput = document.createElement("input");
+  loopEndInput.type = "number";
+  loopEndInput.min = "0.25";
+  loopEndInput.step = "0.25";
+  loopEndInput.value = String(project.loop.endBeat);
+  loopEndInput.className = "loop-range-input";
+
+  loopLabel.append(loopStartInput, "–", loopEndInput);
+
   const addTrackButton = document.createElement("button");
   addTrackButton.type = "button";
   addTrackButton.textContent = "+ Track";
@@ -95,6 +127,7 @@ export function renderTimeline(container, project) {
     tempoLabel,
     beatsPerBarLabel,
     metronomeLabel,
+    loopLabel,
     hZoomLabel,
     vZoomLabel,
     addTrackButton,
@@ -116,10 +149,28 @@ export function renderTimeline(container, project) {
   tracksEl.className = "timeline-tracks";
   grid.appendChild(tracksEl);
 
+  const loopRegion = document.createElement("div");
+  loopRegion.className = "timeline-loop-region";
+  loopRegion.style.left = `${TRACK_HEADER_WIDTH}px`;
+  grid.appendChild(loopRegion);
+
   const playhead = document.createElement("div");
   playhead.className = "timeline-playhead";
   playhead.style.left = `${TRACK_HEADER_WIDTH}px`;
   grid.appendChild(playhead);
+
+  function renderLoopRegion() {
+    loopRegion.hidden = !project.loop.enabled;
+    loopRegion.style.transform = `translateX(${project.loop.startBeat * pixelsPerBeat}px)`;
+    loopRegion.style.width = `${(project.loop.endBeat - project.loop.startBeat) * pixelsPerBeat}px`;
+    loopRegion.style.top = `${ruler.offsetHeight}px`;
+    loopRegion.style.height = `${tracksEl.offsetHeight}px`;
+  }
+
+  function syncLoop() {
+    getTransport({ beatsPerBar: project.timeSignature.beatsPerBar }).setLoop(project.loop);
+    renderLoopRegion();
+  }
 
   const pianoRollPanel = document.createElement("div");
   pianoRollPanel.className = "piano-roll-panel";
@@ -293,6 +344,7 @@ export function renderTimeline(container, project) {
       tracksEl.appendChild(row);
     }
     updatePlayheadExtent();
+    renderLoopRegion();
   }
 
   function syncPlayhead() {
@@ -330,6 +382,20 @@ export function renderTimeline(container, project) {
   metronomeCheckbox.addEventListener("change", () => {
     setMetronomeEnabled(metronomeCheckbox.checked);
   });
+  loopCheckbox.addEventListener("change", () => {
+    setLoopEnabled(project, loopCheckbox.checked);
+    syncLoop();
+  });
+  loopStartInput.addEventListener("input", () => {
+    setLoopRange(project, Number(loopStartInput.value) || 0, project.loop.endBeat);
+    loopStartInput.value = String(project.loop.startBeat);
+    syncLoop();
+  });
+  loopEndInput.addEventListener("input", () => {
+    setLoopRange(project, project.loop.startBeat, Number(loopEndInput.value) || project.loop.endBeat);
+    loopEndInput.value = String(project.loop.endBeat);
+    syncLoop();
+  });
   hZoomInput.addEventListener("input", () => {
     pixelsPerBeat = Number(hZoomInput.value);
     renderRuler();
@@ -349,5 +415,6 @@ export function renderTimeline(container, project) {
   renderRuler();
   renderTracks();
   syncPlayhead();
+  syncLoop();
   requestAnimationFrame(updatePlayheadLoop);
 }

@@ -4,8 +4,8 @@
     {
       "name": "synthdaw-dev",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "4240", "--directory", "src"],
-      "port": 4240
+      "runtimeArgs": ["-m", "http.server", "4273", "--directory", "src"],
+      "port": 4273
     }
   ]
 }

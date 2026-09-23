@@ -2,7 +2,7 @@
 
 High-level phased roadmap. Each phase should be broken into scoped tasks (and git commits) at implementation time — this file stays high-level. Update the "Status" line as phases start/finish, and log notable milestones in [LOG.md](LOG.md).
 
-**Status: Phases 0–6 complete. Phase 7 not started.**
+**Status: Phases 0–6 complete. Phase 8 partially complete (looping) — taken out of order ahead of Phase 7 (waveform editing has no content to act on yet). Phase 7 and the rest of Phase 8 not started.**
 
 ## Guiding constraints (from CLAUDE.md)
 
@@ -97,11 +97,13 @@ Settled up front so later phases don't churn on foundational choices:
 - Zoomed-in waveform view for rendered/bounced synth blocks — cut/trim/fade/normalize/gain. (Sample recording/import is a non-goal for now; see above.)
 - Automation lanes for arbitrary parameters (synth params, effect params, volume/pan) over time, with curve editing.
 
-## Phase 8 — Looping & Arrangement
+## Phase 8 — Looping & Arrangement (partial — see notes)
 
-- Loop region definition and playback looping.
-- Punch in/out recording.
-- Section markers and arrangement-level view (blocks collapsed to bar-level, per the zoom-out requirement).
+**Taken out of order, ahead of Phase 7:** looping is explicitly named in the project concept ("It should have looping") as a core requirement, whereas Phase 7's waveform editing has no real content to operate on yet (no sample recording/import — a standing non-goal — and no rendered/bounced audio exists). Looping was the higher-value, more clearly-scoped piece to build next.
+
+- ✅ Loop region definition (`project.loop: { enabled, startBeat, endBeat }`, [project.js](../src/js/core/project.md)) and seamless, audio-accurate playback looping ([transport.js](../src/js/core/transport.md)) — verified in-browser to hold up over 12+ consecutive loop cycles with no drift and no double/missed note scheduling. A real bug was found and fixed during this work: the first implementation attempt re-anchored the transport's position using the *scheduling lookahead* (~100ms ahead of real time) instead of actual elapsed playback time, which both corrupted position reads at the seam and caused ~3x over-scheduling of notes near the loop boundary — see the "Deviation" history in [transport.md](../src/js/core/transport.md) and the Phase 8 log entry.
+- ✅ A visual loop-region overlay on the timeline ruler/lanes, and loop enable/start/end controls in the transport bar ([timeline.js](../src/js/ui/timeline.md)).
+- ❌ Not done: punch in/out recording (no capture source exists — same reason transport `record` was skipped in Phase 4) and an arrangement-level "blocks collapse to bars" view (deferred; the existing horizontal zoom already reaches down to a coarse bar-level look, just without dedicated section markers).
 
 ## Phase 9 — Persistence & Export
 

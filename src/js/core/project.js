@@ -11,6 +11,7 @@ export function createProject() {
     timeSignature: { beatsPerBar: 4 },
     tracks: [],
     master: { volume: 0.2, effects: [] },
+    loop: { enabled: false, startBeat: 0, endBeat: 8 },
   };
 }
 
@@ -77,6 +78,15 @@ export function resizeNote(note, newLengthBeats) {
 
 export function setMasterVolume(project, value) {
   project.master.volume = value;
+}
+
+export function setLoopEnabled(project, enabled) {
+  project.loop.enabled = enabled;
+}
+
+export function setLoopRange(project, startBeat, endBeat) {
+  project.loop.startBeat = Math.max(0, startBeat);
+  project.loop.endBeat = Math.max(project.loop.startBeat + 0.25, endBeat);
 }
 
 export function setTrackVolume(track, value) {

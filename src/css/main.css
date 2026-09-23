@@ -229,6 +229,24 @@ main {
   pointer-events: none;
 }
 
+.timeline-loop-region {
+  position: absolute;
+  background: rgba(91, 140, 255, 0.12);
+  border-left: 2px solid var(--accent);
+  border-right: 2px solid var(--accent);
+  pointer-events: none;
+}
+
+.loop-range-input {
+  width: 3.5rem;
+  background: #101216;
+  color: var(--fg);
+  border: 1px solid #3a3d46;
+  border-radius: 4px;
+  padding: 0.2rem;
+  font-size: 0.7rem;
+}
+
 .patch-panel,
 .mixer-panel {
   width: min(720px, 100%);

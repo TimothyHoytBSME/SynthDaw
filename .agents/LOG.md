@@ -162,3 +162,13 @@ Chronological history of notable actions taken by any agent in this project. App
 - Why it was missed: the preview pane doesn't enforce Chrome's autoplay policy (its contexts start `running`), and all earlier verification checked the schedule and offline renders, never the live clock under the policy.
 - Verified in-browser with the policy simulated (context suspended; `resume()` refused unless `navigator.userActivation.isActive`): a real click on Play resumed the context with 0 blocked resumes. Position advanced 6.6 → 10.6 beats over 3s, and an analyser on the master bus read non-zero RMS (0.018–0.039) throughout. A scripted play() with no gesture waited instead of running, showed the hint, and Stop cleared the pending start. No console errors.
 - Commit(s): e46751a
+
+### 2026-09-27 — Fix, part 2: unlock audio on mousedown/click, not pointerdown
+- Agent/Model: Claude Opus 5.5
+- What: After the first autoplay fix, the user's Chrome (Windows, mouse) was still silent. Their console showed `unlockAudio` creating the context from the capture-phase **pointerdown** listener and Chrome refusing it ("not allowed to start"). For a mouse, Chrome records user activation at `mousedown`, which comes *after* `pointerdown`, so the earlier fix unlocked audio one event too early. Changes:
+  - Unlock on `mousedown`/`click`/`keydown`/`touchend`.
+  - Don't touch audio at all (no context, no live notes, no pitch bend) until `navigator.userActivation.hasBeenActive`.
+  - Add `getAudioState()` and `audio:state` events, plus a transport-bar warning shown whenever the context exists but isn't running.
+- Why it was missed twice: the preview pane grants audio unconditionally, and even with the policy simulated it can't reproduce Chrome's event-vs-activation ordering. The user's pasted console stack trace is what identified the cause.
+- Verified in-browser (logic only, per the above): before any real gesture, a MIDI-style note and an untrusted mousedown created 0 AudioContexts. A real click on Play created exactly 1 running context, and the transport advanced with non-zero master-bus RMS (0.017–0.037). Suspending the context showed the warning, and a real click elsewhere resumed it and hid the warning. No console messages. **Still needs confirmation in the user's Chrome.**
+- Commit(s): (see next entry)

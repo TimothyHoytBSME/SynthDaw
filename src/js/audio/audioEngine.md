@@ -4,8 +4,9 @@ Owns the single `AudioContext`, the master gain, the live [synthEngine](./synthE
 
 **Autoplay policy:** Chrome only lets a context start inside a user gesture. A context created or resumed outside one stays suspended with a frozen `currentTime`, and every attempt logs "The AudioContext was not allowed to start". So:
 - `ensureContext()` never resumes.
-- `unlockAudio()` is the only place that resumes. It runs from capture-phase `pointerdown`/`keydown` listeners on `window`, so it fires before the Play button, Space or a computer-keyboard note handles the same gesture. The listeners stay registered because Chrome can suspend a context again.
-- Nothing creates the context at page load (see [transportController.js](../core/transportController.md)). A MIDI note arriving before any click creates a suspended context, which the next click unlocks.
+- `unlockAudio()` is the only place that resumes. It runs from capture-phase `mousedown`/`click`/`keydown`/`touchend` listeners on `window`, so it fires before the Play button, Space or a computer-keyboard note handles the same gesture. The listeners stay registered because Chrome can suspend a context again. **Not `pointerdown`:** for a mouse, Chrome dispatches `pointerdown` *before* it records the user activation (that happens at `mousedown`), so audio started there is refused. This was the second half of the silent-playback bug, and it's invisible in the preview pane.
+- **Nothing touches audio before the page has user activation** (`navigator.userActivation.hasBeenActive`): `unlockAudio`, live notes and pitch bend all return early. There's no context at page load (see [transportController.js](../core/transportController.md)), and a MIDI note before any click is dropped, since it couldn't sound anyway.
+- `getAudioState()` returns `"not-started"` or the context's state, and `audio:state` is emitted on every context state change. [transportBar.js](../ui/transportBar.md) uses it to show a warning whenever audio exists but isn't running.
 
 Before this fix the context was created at startup and only resumed as a side effect of scheduling sounds from timers. In a real Chrome tab playback ran against a frozen clock after the first click. The preview pane doesn't enforce autoplay, which is why earlier testing missed it.
 

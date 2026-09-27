@@ -7,6 +7,10 @@ import { getSelectedTrack } from "../core/selection.js";
 const DEFAULT_VELOCITY = 100;
 const PITCH_BEND_RANGE_CENTS = 200; // ±2 semitones, the common synth default
 const PITCH_BEND_HALF_RANGE = 8192; // 14-bit MIDI pitch bend is centred on 8192
+// Events on which Chrome has already registered the user gesture. Not pointerdown: for a mouse,
+// Chrome dispatches pointerdown *before* it records the activation (that happens at
+// mousedown), so audio started from pointerdown is refused with "not allowed to start".
+const UNLOCK_EVENTS = ["mousedown", "click", "keydown", "touchend"];
 
 let audioContext = null;
 let masterGain = null;
@@ -42,21 +46,35 @@ function ensureContext() {
     masterGain = audioContext.createGain();
     synthEngine = createSynthEngine(audioContext, masterGain);
     mixer = createMixer(audioContext, masterGain); // routes masterGain -> master effect chain -> destination
+    audioContext.addEventListener("statechange", () => bus.emit("audio:state", { state: audioContext.state }));
     syncMixer();
   }
   return audioContext;
 }
 
+// Sticky activation: true once the user has clicked/tapped/typed on the page at all. Before
+// that, Chrome refuses to start any AudioContext, so there's no point creating one (it would
+// only log a warning and stay suspended). Browsers without the API are assumed permissive.
+function hasUserActivation() {
+  return navigator.userActivation?.hasBeenActive ?? true;
+}
+
 function unlockAudio() {
+  if (!hasUserActivation()) {
+    return;
+  }
   const context = ensureContext();
-  if (context.state === "suspended") {
-    context.resume().then(() => bus.emit("audio:unlocked", {}));
+  if (context.state !== "running") {
+    context.resume().then(() => bus.emit("audio:state", { state: context.state }));
   }
 }
 
 // Live input (MIDI, computer keyboard, piano-roll previews) plays the selected track's
 // instrument through that track's mixer bus, so it sounds exactly like the track's playback.
 function handleNoteOn({ note, velocity = DEFAULT_VELOCITY }) {
+  if (!hasUserActivation()) {
+    return; // e.g. a MIDI note before any click: the browser won't let it sound anyway
+  }
   ensureContext();
   const track = project ? getSelectedTrack(project) : null;
   if (track) {
@@ -71,6 +89,9 @@ function handleNoteOff({ note }) {
 }
 
 function handlePitchBend({ value }) {
+  if (!hasUserActivation()) {
+    return;
+  }
   ensureContext();
   synthEngine.setPitchBend((value / PITCH_BEND_HALF_RANGE) * PITCH_BEND_RANGE_CENTS);
 }
@@ -79,7 +100,7 @@ export function initAudioEngine() {
   // Capture phase, so the context is resumed before any handler that plays sound (the Play
   // button, Space, computer-keyboard notes) runs for that same gesture. Kept registered
   // (not once-only) because Chrome can suspend a context again, e.g. after an output change.
-  for (const type of ["pointerdown", "keydown"]) {
+  for (const type of UNLOCK_EVENTS) {
     window.addEventListener(type, unlockAudio, { capture: true });
   }
   bus.on("note:on", handleNoteOn);
@@ -93,6 +114,12 @@ export function initAudioEngine() {
 export function attachProject(theProject) {
   project = theProject;
   queueMixerSync();
+}
+
+// "not-started" until the first user action creates the context; otherwise the context's
+// own state ("running", "suspended", "interrupted", "closed").
+export function getAudioState() {
+  return audioContext?.state ?? "not-started";
 }
 
 export function ensureAudioContext() {

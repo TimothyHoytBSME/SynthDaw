@@ -296,6 +296,15 @@ main {
   border-color: #ff7a5b;
 }
 
+.transport-audio-status {
+  font-size: 0.75rem;
+  color: #ffb35b;
+}
+
+.transport-audio-status[hidden] {
+  display: none;
+}
+
 .transport-position {
   font-family: ui-monospace, monospace;
   font-size: 0.95rem;

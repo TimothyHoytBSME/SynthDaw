@@ -1,6 +1,7 @@
 import { setLoopEnabled, setLoopRange, setTempo, setBeatsPerBar, MIN_TEMPO, MAX_TEMPO } from "../core/project.js";
 import { getTransport, setMetronomeEnabled, isMetronomeEnabled } from "../core/transportController.js";
 import { bus } from "../core/eventBus.js";
+import { getAudioState } from "../audio/audioEngine.js";
 import {
   startRecording,
   stopRecording,
@@ -82,6 +83,7 @@ export function createTransportBar(project, { onLayoutChange, onTransportAction 
   });
   const unsubscribers = [
     bus.on("recorder:changed", showRecording),
+    bus.on("audio:state", showAudioState),
     // Normally invisible: Play already counts as the click that unlocks audio. This only shows
     // if the browser still refuses to start audio (e.g. play triggered without any gesture).
     bus.on("transport:waiting-for-audio", () => {
@@ -93,6 +95,17 @@ export function createTransportBar(project, { onLayoutChange, onTransportAction 
     }),
   ];
   showRecording();
+
+  // Only visible when audio exists but isn't running, so a browser block is never silent.
+  const audioStatus = document.createElement("span");
+  audioStatus.className = "transport-audio-status";
+  audioStatus.setAttribute("role", "status");
+  audioStatus.textContent = "🔇 Audio is paused by the browser. Click anywhere to enable it.";
+  function showAudioState() {
+    const state = getAudioState();
+    audioStatus.hidden = state === "running" || state === "not-started";
+  }
+  showAudioState();
 
   const position = document.createElement("output");
   position.className = "transport-position";
@@ -173,6 +186,7 @@ export function createTransportBar(project, { onLayoutChange, onTransportAction 
     beatsPerBar.label,
     metronome.label,
     loop.label,
+    audioStatus,
   );
 
   return {

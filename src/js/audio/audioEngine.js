@@ -11,6 +11,11 @@ const PITCH_BEND_HALF_RANGE = 8192; // 14-bit MIDI pitch bend is centred on 8192
 // Chrome dispatches pointerdown *before* it records the activation (that happens at
 // mousedown), so audio started from pointerdown is refused with "not allowed to start".
 const UNLOCK_EVENTS = ["mousedown", "click", "keydown", "touchend"];
+// Fixed engine rate instead of the output device's native one. Chrome resamples to the device.
+// Devices can run at 192 kHz, where every oscillator, filter and convolution reverb costs 4x as
+// much: measured, the demo song's effect chains alone (no notes) needed 109% of real time at
+// 192 kHz, so the audio thread overloaded and produced total silence. At 48 kHz: 14%.
+const ENGINE_SAMPLE_RATE = 48000;
 
 let audioContext = null;
 let masterGain = null;
@@ -42,7 +47,7 @@ function queueMixerSync() {
 // the one place that resumes, from real clicks/keypresses.
 function ensureContext() {
   if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: ENGINE_SAMPLE_RATE });
     masterGain = audioContext.createGain();
     synthEngine = createSynthEngine(audioContext, masterGain);
     mixer = createMixer(audioContext, masterGain); // routes masterGain -> master effect chain -> destination

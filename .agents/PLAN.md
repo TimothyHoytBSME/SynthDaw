@@ -227,6 +227,7 @@ A full read of every source file plus the running app. Phases 1–12 built a lot
 - Distortion effect output compensation: it adds about +19 dB on quiet signals, so adding it makes a track jump in level (found while mixing the demo song).
 - Track volume is applied *before* the track's effects (`gainNode -> effectChain -> pan`), so a compressor's automatic makeup gain cancels volume cuts. It should probably be post-effects, like a real fader.
 - Tempo-synced delay times.
+- **DSP cost:** at 48 kHz the demo's densest section takes about 50% of real time to render offline, and the voices alone about 35%. Per-voice biquad filters with automated (a-rate) frequency are likely the main cost. Consider cheaper voices (skip the filter envelope when `envAmount` is 0, share LFOs), a voice cap for sequenced notes, and a load indicator. This overlaps the on-hold Phase 11 performance profiling.
 - Phase 11 (cross-platform/perf/a11y), still on hold.
 
 ## Ongoing, every phase

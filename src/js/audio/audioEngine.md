@@ -2,6 +2,8 @@
 
 Owns the single `AudioContext`, the master gain, the live [synthEngine](./synthEngine.md) and the [mixer](./mixer.md). All of them are created lazily in `ensureContext()`.
 
+**Fixed 48 kHz engine rate** (`ENGINE_SAMPLE_RATE`): the context is created with `{ sampleRate: 48000 }` rather than the output device's native rate, and Chrome resamples to the device. On a 192 kHz device every node costs about 4× as much. Measured offline, the demo song's effect chains alone (no notes) needed 109% of real time at 192 kHz versus 14% at 48 kHz, and the densest section needed 241% versus about 50%. The overloaded audio thread produced total silence while the clock still advanced. Don't remove this without re-measuring.
+
 **Autoplay policy:** Chrome only lets a context start inside a user gesture. A context created or resumed outside one stays suspended with a frozen `currentTime`, and every attempt logs "The AudioContext was not allowed to start". So:
 - `ensureContext()` never resumes.
 - `unlockAudio()` is the only place that resumes. It runs from capture-phase `mousedown`/`click`/`keydown`/`touchend` listeners on `window`, so it fires before the Play button, Space or a computer-keyboard note handles the same gesture. The listeners stay registered because Chrome can suspend a context again. **Not `pointerdown`:** for a mouse, Chrome dispatches `pointerdown` *before* it records the user activation (that happens at `mousedown`), so audio started there is refused. This was the second half of the silent-playback bug, and it's invisible in the preview pane.

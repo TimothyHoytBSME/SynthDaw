@@ -9,6 +9,8 @@ import {
   isQuantizingTakes,
 } from "../core/recorder.js";
 
+const AUDIO_BLOCKED_HINT_DELAY_MS = 1000;
+
 function button(label, title) {
   const element = document.createElement("button");
   element.type = "button";
@@ -78,7 +80,18 @@ export function createTransportBar(project, { onLayoutChange, onTransportAction 
     }
     onTransportAction();
   });
-  const unsubscribeRecorder = bus.on("recorder:changed", showRecording);
+  const unsubscribers = [
+    bus.on("recorder:changed", showRecording),
+    // Normally invisible: Play already counts as the click that unlocks audio. This only shows
+    // if the browser still refuses to start audio (e.g. play triggered without any gesture).
+    bus.on("transport:waiting-for-audio", () => {
+      setTimeout(() => {
+        if (getTransport().isWaitingForAudio()) {
+          bus.emit("status:message", { text: "Audio is blocked by the browser. Click anywhere on the page to enable it." });
+        }
+      }, AUDIO_BLOCKED_HINT_DELAY_MS);
+    }),
+  ];
   showRecording();
 
   const position = document.createElement("output");
@@ -167,6 +180,6 @@ export function createTransportBar(project, { onLayoutChange, onTransportAction 
     setPosition(beat) {
       position.textContent = formatPosition(beat, project.timeSignature.beatsPerBar);
     },
-    dispose: unsubscribeRecorder,
+    dispose: () => unsubscribers.forEach((unsubscribe) => unsubscribe()),
   };
 }

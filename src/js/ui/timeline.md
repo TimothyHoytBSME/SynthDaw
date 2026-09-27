@@ -14,6 +14,7 @@ It returns a disposer (cancels the rAF loop and unsubscribes).
 - Track header: click to select the track (live input plays it), double-click the name to rename (input: Enter/blur commits, Esc cancels), "×" to remove (asks first if the track has blocks). Headers are `position: sticky` so they stay visible while scrolling horizontally.
 - Lane: click empty space to select the track and deselect the block. **Double-click** to add a one-bar block at the clicked bar. Single click used to add blocks, which made every stray click create one.
 - Block: pointerdown selects it. Drag to move (snaps to ¼ beat, or whole beats below 20 px/beat) and drag vertically to move it to another track. The track change is only previewed with `translateY` until release, because re-parenting mid-drag would drop pointer capture. Drag the right edge to resize, and double-click to open the piano roll. Each block shows a miniature of its notes (`renderNotePreview`, positioned in %).
+- The playhead polls `transportController.getPositionBeats()`, which never creates the transport/AudioContext. Only a user action does.
 - Ruler: click or drag to seek (`transport.seek`). It shows bar numbers plus beat ticks when zoomed in far enough.
 - Length grows with content: at least 32 bars, and always 8 bars past the last block/loop end.
 

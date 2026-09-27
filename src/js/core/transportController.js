@@ -62,24 +62,31 @@ function loopsEqual(a, b) {
 // The transport follows the project, same as the mixer does in audioEngine.js: tempo and loop
 // are read from the model after every change rather than pushed in by UI code.
 function syncFromProject() {
-  if (!project) {
-    return;
+  if (!project || !transport) {
+    return; // getTransport() syncs as soon as the transport exists
   }
-  const theTransport = getTransport();
-  theTransport.setTempo(project.tempo);
-  if (!loopsEqual(theTransport.getLoop(), project.loop)) {
-    theTransport.setLoop({ ...project.loop });
+  transport.setTempo(project.tempo);
+  if (!loopsEqual(transport.getLoop(), project.loop)) {
+    transport.setLoop({ ...project.loop });
   }
 }
 
+// Creates the transport (and with it the AudioContext) on first real use — i.e. from a
+// user action like Play — never at page load, so Chrome's autoplay policy has a gesture.
 export function getTransport() {
   if (!transport) {
     transport = createTransport(ensureAudioContext(), {
       onSchedule: handleSchedule,
       onCancel: cancelScheduledNotes,
     });
+    syncFromProject();
   }
   return transport;
+}
+
+// For read-only polling (the playhead): doesn't create the transport or AudioContext.
+export function getPositionBeats() {
+  return transport ? transport.getPositionBeats() : 0;
 }
 
 export function setProject(nextProject) {

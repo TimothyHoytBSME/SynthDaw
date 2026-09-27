@@ -1,6 +1,13 @@
 # audioEngine.js
 
-Owns the single `AudioContext`, the master gain, the live [synthEngine](./synthEngine.md) and the [mixer](./mixer.md). All of them are created lazily in `ensureContext()` (autoplay policy), which also resumes a suspended context.
+Owns the single `AudioContext`, the master gain, the live [synthEngine](./synthEngine.md) and the [mixer](./mixer.md). All of them are created lazily in `ensureContext()`.
+
+**Autoplay policy:** Chrome only lets a context start inside a user gesture. A context created or resumed outside one stays suspended with a frozen `currentTime`, and every attempt logs "The AudioContext was not allowed to start". So:
+- `ensureContext()` never resumes.
+- `unlockAudio()` is the only place that resumes. It runs from capture-phase `pointerdown`/`keydown` listeners on `window`, so it fires before the Play button, Space or a computer-keyboard note handles the same gesture. The listeners stay registered because Chrome can suspend a context again.
+- Nothing creates the context at page load (see [transportController.js](../core/transportController.md)). A MIDI note arriving before any click creates a suspended context, which the next click unlocks.
+
+Before this fix the context was created at startup and only resumed as a side effect of scheduling sounds from timers. In a real Chrome tab playback ran against a frozen clock after the first click. The preview pane doesn't enforce autoplay, which is why earlier testing missed it.
 
 - **Live notes:** subscribes to `note:on`/`note:off` on the [eventBus](../core/eventBus.md). A note-on plays the **selected track's** patch through that track's mixer bus (via [selection.js](../core/selection.md)), so live MIDI, computer-keyboard and piano-roll previews sound exactly like that track's playback, including its effects, volume and pan. It falls back to a default patch on the master bus only when the project has no tracks.
 - **Pitch bend:** `midi:pitchbend` (14-bit, centred on 0 after parsing) → `synthEngine.setPitchBend`, ±200 cents on live voices only.

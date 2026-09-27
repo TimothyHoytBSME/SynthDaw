@@ -13,6 +13,8 @@ export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
   let startBeat = 0;
   let scheduledUpToBeat = 0;
   let schedulerTimer = null;
+  // Set while play() waits for a suspended AudioContext to actually start running.
+  let pendingStart = null;
   let loop = { enabled: false, startBeat: 0, endBeat: 8 };
 
   function beatsToSeconds(beats) {
@@ -96,23 +98,47 @@ export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
     schedulerTimer = setTimeout(poll, LOOKAHEAD_MS);
   }
 
+  function start() {
+    // Resume where we paused if that's inside the loop; only snap to the loop start from
+    // outside it (e.g. after Stop, which rewinds to 0).
+    if (loopIsValid() && !isInsideLoop(startBeat)) {
+      startBeat = loop.startBeat;
+    }
+    running = true;
+    startContextTime = audioContext.currentTime;
+    scheduledUpToBeat = startBeat;
+    poll();
+    bus.emit("transport:play", {});
+  }
+
+  function cancelPendingStart() {
+    pendingStart = null;
+  }
+
   return {
+    // The clock must only be anchored once the AudioContext is really running: a suspended
+    // context (Chrome's autoplay policy, before the first click) has a frozen currentTime, so
+    // anchoring to it would leave the transport "playing" against a clock that never moves.
     play() {
-      if (running) {
+      if (running || pendingStart) {
         return;
       }
-      // Resume where we paused if that's inside the loop; only snap to the loop start from
-      // outside it (e.g. after Stop, which rewinds to 0).
-      if (loopIsValid() && !isInsideLoop(startBeat)) {
-        startBeat = loop.startBeat;
+      if (audioContext.state === "running") {
+        start();
+        return;
       }
-      running = true;
-      startContextTime = audioContext.currentTime;
-      scheduledUpToBeat = startBeat;
-      poll();
-      bus.emit("transport:play", {});
+      const token = {};
+      pendingStart = token;
+      bus.emit("transport:waiting-for-audio", {});
+      audioContext.resume().then(() => {
+        if (pendingStart === token) {
+          pendingStart = null;
+          start();
+        }
+      });
     },
     pause() {
+      cancelPendingStart();
       if (!running) {
         return;
       }
@@ -123,6 +149,7 @@ export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
       bus.emit("transport:pause", {});
     },
     stop() {
+      cancelPendingStart();
       running = false;
       clearTimeout(schedulerTimer);
       startBeat = 0;
@@ -161,8 +188,13 @@ export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
     },
     getPositionBeats,
     beatToContextTime,
+    // True while playing or while a play() is waiting for audio to start, so a second
+    // Space/Play press during that wait toggles it off instead of stacking another start.
     isRunning() {
-      return running;
+      return running || pendingStart !== null;
+    },
+    isWaitingForAudio() {
+      return pendingStart !== null;
     },
   };
 }

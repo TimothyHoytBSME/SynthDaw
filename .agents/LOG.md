@@ -151,3 +151,14 @@ Chronological history of notable actions taken by any agent in this project. App
 - Verified in-browser (on the user's running dev server, in the preview pane's separate storage): Load Demo produced 5 tracks, 14 blocks, tempo 112 and a visible loop. Each track was rendered solo offline to balance levels. The full mix measured −29 / −20.7 / −19.2 / −19.2 dB RMS per section with a 0.51 peak and 0 clipped samples. Live playback from bar 9 scheduled normally, with no console errors.
 - Found while mixing, not fixed (added to the PLAN backlog): distortion adds about +19 dB with no output compensation, and track volume is pre-effects, so a compressor's makeup gain cancels volume cuts.
 - Commit(s): 93a9b1f
+
+### 2026-09-27 — Fix: no sound in Chrome after the first metronome click (autoplay policy)
+- Agent/Model: Claude Opus 5.5
+- What: The user reported silence after the first click, with the console warning "The AudioContext was not allowed to start". Root cause: startup created the `AudioContext` (via `setProject` → `getTransport()`), before any user gesture, so Chrome made it suspended. It was then only resumed as a side effect of scheduling sounds, mostly from timers that don't count as gestures, and `transport.play()` anchored its clock to the suspended context's frozen `currentTime`. The fix:
+  - Nothing creates the transport or context at load anymore. The playhead polls a non-creating `getPositionBeats()`, and the first `getTransport()` call syncs tempo/loop from the project.
+  - `audioEngine.unlockAudio()` resumes from capture-phase `pointerdown`/`keydown` listeners, and `ensureContext()` no longer calls `resume()`.
+  - `transport.play()` waits for `resume()` to resolve before anchoring (cancellable by pause/stop).
+  - If audio stays blocked, a "click anywhere to enable audio" hint appears.
+- Why it was missed: the preview pane doesn't enforce Chrome's autoplay policy (its contexts start `running`), and all earlier verification checked the schedule and offline renders, never the live clock under the policy.
+- Verified in-browser with the policy simulated (context suspended; `resume()` refused unless `navigator.userActivation.isActive`): a real click on Play resumed the context with 0 blocked resumes. Position advanced 6.6 → 10.6 beats over 3s, and an analyser on the master bus read non-zero RMS (0.018–0.039) throughout. A scripted play() with no gesture waited instead of running, showed the hint, and Stop cleared the pending start. No console errors.
+- Commit(s): (see next entry)

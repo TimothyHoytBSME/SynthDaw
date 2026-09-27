@@ -32,6 +32,10 @@ function queueMixerSync() {
   }
 }
 
+// Creates the context and graph on first use. It deliberately does NOT resume the context:
+// Chrome only lets a context start inside a user gesture, and resume() calls from timers or
+// MIDI callbacks just log "The AudioContext was not allowed to start". unlockAudio() below is
+// the one place that resumes, from real clicks/keypresses.
 function ensureContext() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -40,10 +44,14 @@ function ensureContext() {
     mixer = createMixer(audioContext, masterGain); // routes masterGain -> master effect chain -> destination
     syncMixer();
   }
-  if (audioContext.state === "suspended") {
-    audioContext.resume();
-  }
   return audioContext;
+}
+
+function unlockAudio() {
+  const context = ensureContext();
+  if (context.state === "suspended") {
+    context.resume().then(() => bus.emit("audio:unlocked", {}));
+  }
 }
 
 // Live input (MIDI, computer keyboard, piano-roll previews) plays the selected track's
@@ -68,6 +76,12 @@ function handlePitchBend({ value }) {
 }
 
 export function initAudioEngine() {
+  // Capture phase, so the context is resumed before any handler that plays sound (the Play
+  // button, Space, computer-keyboard notes) runs for that same gesture. Kept registered
+  // (not once-only) because Chrome can suspend a context again, e.g. after an output change.
+  for (const type of ["pointerdown", "keydown"]) {
+    window.addEventListener(type, unlockAudio, { capture: true });
+  }
   bus.on("note:on", handleNoteOn);
   bus.on("note:off", handleNoteOff);
   bus.on("midi:pitchbend", handlePitchBend);

@@ -7,7 +7,7 @@ import {
   resizeBlock,
   moveBlockToTrack,
 } from "../core/project.js";
-import { getTransport } from "../core/transportController.js";
+import { getTransport, getPositionBeats } from "../core/transportController.js";
 import { bus } from "../core/eventBus.js";
 import { getSelectedTrack, getSelection, selectTrack, selectBlock, findBlock } from "../core/selection.js";
 import { renderPianoRoll } from "./pianoRoll.js";
@@ -223,7 +223,7 @@ export function renderTimeline(container, project) {
   }
 
   function syncPlayhead() {
-    const beat = getTransport().getPositionBeats();
+    const beat = getPositionBeats();
     playhead.style.transform = `translateX(${beat * view.pixelsPerBeat}px)`;
     transportBar.setPosition(beat);
   }

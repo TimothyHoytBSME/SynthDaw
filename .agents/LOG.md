@@ -161,4 +161,4 @@ Chronological history of notable actions taken by any agent in this project. App
   - If audio stays blocked, a "click anywhere to enable audio" hint appears.
 - Why it was missed: the preview pane doesn't enforce Chrome's autoplay policy (its contexts start `running`), and all earlier verification checked the schedule and offline renders, never the live clock under the policy.
 - Verified in-browser with the policy simulated (context suspended; `resume()` refused unless `navigator.userActivation.isActive`): a real click on Play resumed the context with 0 blocked resumes. Position advanced 6.6 → 10.6 beats over 3s, and an analyser on the master bus read non-zero RMS (0.018–0.039) throughout. A scripted play() with no gesture waited instead of running, showed the hint, and Stop cleared the pending start. No console errors.
-- Commit(s): (see next entry)
+- Commit(s): e46751a

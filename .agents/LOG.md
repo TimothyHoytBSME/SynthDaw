@@ -179,3 +179,9 @@ Chronological history of notable actions taken by any agent in this project. App
 - Why it was missed: the preview pane tolerated the overload (probably through larger buffers), and every earlier check either rendered offline (at 44.1 kHz) or ran in that pane. The autoplay fixes were real bugs too, but they weren't the whole story.
 - Verified in-browser: the context was created at 48000 Hz. A real click on Play plus a seek to the densest section (bars 13–16) gave master-bus RMS of 0.06–0.12 throughout, and the audio clock tracked wall-clock time at a ratio of 1.000, so no overload. **Still needs confirmation in the user's Chrome.** Added a DSP-cost item to the PLAN backlog (voices alone take ~35% at 48 kHz).
 - Commit(s): 307e71d
+
+### 2026-09-27 — Session wrap-up
+- Agent/Model: Claude Opus 5.5
+- What: Closed out the session. The working tree is clean, every `.md` is in `docs/INDEX.md`, and every code file has a companion doc. Updated `PLAN.md`'s status line with post-Phase-17 work and a next-session pointer (the Backlog, led by the distortion-gain, pre-effects-volume and DSP-cost items). No code changes.
+- Note for future verification: the in-app preview pane does **not** reproduce Chrome's autoplay policy or its real-time audio overload behaviour. Audio fixes need confirmation in the user's own Chrome, or measurement against real-time deadlines (offline render time vs. audio duration; `currentTime` vs. wall clock), not just the preview pane.
+- Commit(s): (this commit)

@@ -289,12 +289,12 @@ function kickTrack() {
 }
 
 function snareTrack() {
-  // Triangle body plus a square three octaves (and a detune) up; the filter envelope makes the
+  // Triangle body plus a square an octave (and a detune) up; the filter envelope makes the
   // crack, and heavy distortion turns the two inharmonic partials' intermodulation into grit.
   const patch = normalizePatch({
     oscillators: [
       { type: "triangle", octave: 0, detune: 0, mix: 0.6 },
-      { type: "square", octave: 3, detune: 37, mix: 0.4 },
+      { type: "square", octave: 1, detune: 37, mix: 0.4 },
     ],
     filter: { type: "lowpass", cutoff: 1500, resonance: 1, envAmount: 6000 },
     ampEnvelope: { attack: 0.001, decay: 0.18, sustain: 0, release: 0.08 },
@@ -329,7 +329,7 @@ function snareTrack() {
     return snares(barIndex % 2 === 0 ? [[2, 122]] : [[2, 122], [3.75, 60]])(chord, start);
   };
   return track("Snare", patch, {
-    volume: 0.65,
+    volume: 0.52,
     pan: 0.05,
     effects: [
       effect("distortion", { drive: 0.9, mix: 0.5 }),

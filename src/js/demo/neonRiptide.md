@@ -18,7 +18,7 @@
 
 **New sounds, all from the 2-oscillator voice** (the engine has no noise source or pitch envelope):
 - **Kick:** a sine plus a square an octave up under a resonant lowpass. A ~70 ms filter-envelope sweep through the square's harmonics stands in for the pitch drop and click.
-- **Snare:** a triangle body plus a square 3 octaves and 37 cents up, with a filter-envelope crack and heavy distortion. The two inharmonic partials intermodulate into grit.
+- **Snare:** a triangle body plus a square an octave and 37 cents up, with a filter-envelope crack and heavy distortion. The two inharmonic partials intermodulate into grit.
 - **Hats:** 2 notes × 2 detuned squares through a highpass (the 808's metallic-noise trick). A small sustain makes note length meaningful: 0.25-beat notes are closed hats and 0.75-beat notes are open.
 - **Wobble:** saw + square an octave down, resonant lowpass swept by an 8th-note filter LFO, then distortion. Each note restarts the LFO, so the wobble locks to the note rhythm. **Sub** doubles its rhythm on a clean sine.
 - **Growl:** a bandpass "vowel" opened by the filter envelope, a 16th-note filter LFO, and heavy distortion. **Laser:** a near-self-oscillating lowpass swept down fast ("pew") into an 8th delay.

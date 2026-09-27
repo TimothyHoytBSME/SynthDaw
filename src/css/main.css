@@ -660,25 +660,33 @@ main {
   padding: 0 0.25rem;
 }
 
+/* Label, readout and MIDI-learn button share the first row; the slider gets the full width
+   of the second. (On one row, at this panel's 220px column minimum, the slider was ~7px.) */
 .patch-field {
   display: grid;
-  grid-template-columns: 4.5rem 1fr;
+  grid-template-columns: 1fr auto auto;
   align-items: center;
-  gap: 0.4rem;
+  column-gap: 0.4rem;
+  row-gap: 0.1rem;
   font-size: 0.72rem;
   color: var(--muted);
 }
 
+.patch-field select {
+  grid-column: 2 / -1;
+}
+
 .patch-range {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-width: 0;
+  display: contents;
 }
 
 .patch-range input[type="range"] {
-  flex: 1;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
   min-width: 0;
+  margin: 0;
+  min-height: 24px;
   accent-color: var(--accent);
 }
 
@@ -708,7 +716,6 @@ main {
 }
 
 .patch-readout {
-  flex: 0 0 4.2rem;
   text-align: right;
   font-family: ui-monospace, monospace;
   font-size: 0.68rem;

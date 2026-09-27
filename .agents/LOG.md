@@ -171,4 +171,4 @@ Chronological history of notable actions taken by any agent in this project. App
   - Add `getAudioState()` and `audio:state` events, plus a transport-bar warning shown whenever the context exists but isn't running.
 - Why it was missed twice: the preview pane grants audio unconditionally, and even with the policy simulated it can't reproduce Chrome's event-vs-activation ordering. The user's pasted console stack trace is what identified the cause.
 - Verified in-browser (logic only, per the above): before any real gesture, a MIDI-style note and an untrusted mousedown created 0 AudioContexts. A real click on Play created exactly 1 running context, and the transport advanced with non-zero master-bus RMS (0.017–0.037). Suspending the context showed the warning, and a real click elsewhere resumed it and hid the warning. No console messages. **Still needs confirmation in the user's Chrome.**
-- Commit(s): (see next entry)
+- Commit(s): d94772b

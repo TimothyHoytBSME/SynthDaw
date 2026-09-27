@@ -9,7 +9,7 @@ import {
 import { renderProjectToBuffer } from "../audio/exportRender.js";
 import { audioBufferToWavBlob } from "../audio/wavEncoder.js";
 import { undo, redo, canUndo, canRedo } from "../core/history.js";
-import { createDemoProject } from "../demo/demoSong.js";
+import { DEMOS } from "../demo/demos.js";
 
 const DOWNLOAD_FILENAME = "synthdaw-project.json";
 const WAV_FILENAME = "synthdaw-export.wav";
@@ -53,15 +53,23 @@ export function renderProjectControls(container, project, onReplaced) {
     onReplaced();
   });
 
-  const demoButton = document.createElement("button");
-  demoButton.type = "button";
-  demoButton.textContent = "Load Demo";
-  demoButton.title = "Replace the current project with a demo song (undoable)";
-  demoButton.addEventListener("click", () => {
-    if (!window.confirm("Load the demo song? It replaces the current project (Undo brings it back).")) {
+  // A picker rather than a button, so every demo stays loadable on its own.
+  const demoSelect = document.createElement("select");
+  demoSelect.className = "demo-select";
+  demoSelect.title = "Replace the current project with a demo song (undoable)";
+  demoSelect.append(new Option("Load Demo…", ""));
+  DEMOS.forEach((demo, index) => {
+    const option = new Option(demo.name, String(index));
+    option.title = demo.description;
+    demoSelect.append(option);
+  });
+  demoSelect.addEventListener("change", () => {
+    const demo = DEMOS[Number(demoSelect.value)];
+    demoSelect.value = "";
+    if (!demo || !window.confirm(`Load the demo "${demo.name}"? It replaces the current project (Undo brings it back).`)) {
       return;
     }
-    replaceProjectContents(project, createDemoProject());
+    replaceProjectContents(project, demo.create());
     onReplaced();
   });
 
@@ -127,7 +135,7 @@ export function renderProjectControls(container, project, onReplaced) {
     undoButton,
     redoButton,
     newButton,
-    demoButton,
+    demoSelect,
     exportButton,
     exportWavButton,
     importButton,

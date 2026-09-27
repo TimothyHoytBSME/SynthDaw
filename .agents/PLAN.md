@@ -2,7 +2,7 @@
 
 High-level phased roadmap. Each phase should be broken into scoped tasks (and git commits) at implementation time — this file stays high-level. Update the "Status" line as phases start/finish, and log notable milestones in [LOG.md](LOG.md).
 
-**Status: Phases 0–6, 9, and 10 complete. Phase 8 (looping) and Phase 12 (undo/redo + shortcuts) partially complete. A second full review (2026-09-22, see "Second review" below) found correctness bugs and major usability gaps; Phases 13–17 were added to fix them and are complete. Since then (2026-09-27): a built-in demo song (Load Demo), plus fixes for silent playback in real Chrome (autoplay-policy unlock timing, and a fixed 48 kHz engine rate, because the user's 192 kHz output device overloaded the audio thread). **Next session:** start from the Backlog. The top candidates found while mixing the demo are the distortion gain, pre-effects track volume and DSP cost items. Phase 7 and the remaining Phase 8/12 items are now in the Backlog. Phase 11 (cross-platform validation) is on hold indefinitely per explicit instruction — this environment can't test Linux/Android/other-device Chrome anyway, and it's not blocking use of the app on the one platform (Windows Chrome) that can be tested here.**
+**Status: Phases 0–6, 9, and 10 complete. Phase 8 (looping) and Phase 12 (undo/redo + shortcuts) partially complete. A second full review (2026-09-22, see "Second review" below) found correctness bugs and major usability gaps; Phases 13–17 were added to fix them and are complete. Since then (2026-09-27): built-in demo songs in a Load Demo… picker (Neon Tide, and its 64-bar remix Neon Riptide), plus fixes for silent playback in real Chrome (autoplay-policy unlock timing, and a fixed 48 kHz engine rate, because the user's 192 kHz output device overloaded the audio thread). **Next session:** start from the Backlog. The top candidates found while mixing the demo are the distortion gain, pre-effects track volume and DSP cost items. Phase 7 and the remaining Phase 8/12 items are now in the Backlog. Phase 11 (cross-platform validation) is on hold indefinitely per explicit instruction — this environment can't test Linux/Android/other-device Chrome anyway, and it's not blocking use of the app on the one platform (Windows Chrome) that can be tested here.**
 
 ## Guiding constraints (from CLAUDE.md)
 
@@ -218,7 +218,8 @@ A full read of every source file plus the running app. Phases 1–12 built a lot
 - Phase 7: automation lanes, and a waveform view once there's bounced/rendered audio to show.
 - Send/aux buses; drag-to-reorder effects (`moveEffect` exists, no UI).
 - Clipboard copy/paste of blocks/notes, multi-select, note selection + bulk edits (transpose/quantize selected notes only).
-- Custom/wavetable oscillators, noise oscillator, unison, glide, a generic mod matrix.
+- Custom/wavetable oscillators, noise oscillator, unison, glide, a generic mod matrix. A noise source and a pitch envelope would most improve drums (Neon Riptide's kick/snare/hats fake them with filter sweeps and stacked squares).
+- Tempo-synced LFO rates (Neon Riptide's wobble rates are tempo-derived by hand).
 - Arrangement markers/sections, playhead auto-follow scroll, pinch-to-zoom.
 - Theming, onboarding/first-run help, multiple named saved projects.
 - Recording latency compensation, count-in.
@@ -227,7 +228,7 @@ A full read of every source file plus the running app. Phases 1–12 built a lot
 - Distortion effect output compensation: it adds about +19 dB on quiet signals, so adding it makes a track jump in level (found while mixing the demo song).
 - Track volume is applied *before* the track's effects (`gainNode -> effectChain -> pan`), so a compressor's automatic makeup gain cancels volume cuts. It should probably be post-effects, like a real fader.
 - Tempo-synced delay times.
-- **DSP cost:** at 48 kHz the demo's densest section takes about 50% of real time to render offline, and the voices alone about 35%. Per-voice biquad filters with automated (a-rate) frequency are likely the main cost. Consider cheaper voices (skip the filter envelope when `envAmount` is 0, share LFOs), a voice cap for sequenced notes, and a load indicator. This overlaps the on-hold Phase 11 performance profiling.
+- **DSP cost:** at 48 kHz the demo's densest section takes about 50% of real time to render offline, and the voices alone about 35%. Per-voice biquad filters with automated (a-rate) frequency are likely the main cost. Consider cheaper voices (skip the filter envelope when `envAmount` is 0, share LFOs), a voice cap for sequenced notes, and a load indicator. This overlaps the on-hold Phase 11 performance profiling. Found while building Neon Riptide: every track's effect chain costs CPU even while the track is silent, and a convolution reverb costs ≈2% of real time each (other effects ≈0.3–0.7%). Riptide's verse renders at ≈0.6× real time (live-style scheduling), versus 0.42× for Neon Tide's densest section.
 - Phase 11 (cross-platform/perf/a11y), still on hold.
 
 ## Ongoing, every phase

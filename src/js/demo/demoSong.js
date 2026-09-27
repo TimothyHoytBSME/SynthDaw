@@ -1,6 +1,6 @@
 import { createProject } from "../core/project.js";
 import { createPresetPatch } from "../audio/presets.js";
-import { defaultParamsFor } from "../audio/effectTypes.js";
+import { resetDemoIds, note, block, effect, track } from "./demoKit.js";
 
 // "Neon Tide": a 16-bar A-minor loop (Am–F–C–G) that builds in four 4-bar sections, arranged
 // to exercise most of the app — see demoSong.md for the feature-by-feature tour.
@@ -28,30 +28,6 @@ const LEAD_PHRASE = [
   [12, 71, 1, 106], [13, 67, 1, 92], [14, 62, 2, 100],
 ];
 
-let idCounter = 0;
-function id(prefix) {
-  idCounter += 1;
-  return `${prefix}-${idCounter}`;
-}
-
-function note(noteNumber, startBeat, lengthBeats, velocity) {
-  return { id: id("note"), note: noteNumber, startBeat, lengthBeats, velocity };
-}
-
-function block(startBeat, notes, lengthBeats = SECTION_BEATS) {
-  return { id: id("block"), startBeat, lengthBeats, notes };
-}
-
-function effect(type, overrides = {}) {
-  return { id: id("effect"), type, params: { ...defaultParamsFor(type), ...overrides }, bypassed: false };
-}
-
-// Track volumes in the builders below were balanced by rendering each track solo offline and
-// comparing RMS. The bass sits low mostly because the distortion effect adds a lot of gain.
-function track(name, patch, { volume = 1, pan = 0, effects = [], blocks = [] }) {
-  return { id: id("track"), name, patch, volume, pan, muted: false, soloed: false, effects, blocks };
-}
-
 // Builds one 4-bar phrase by calling `perBar(chord, barStartBeat)` for each chord.
 function phrase(perBar) {
   return PROGRESSION.flatMap((chord, bar) => perBar(chord, bar * BEATS_PER_BAR));
@@ -60,9 +36,11 @@ function phrase(perBar) {
 // Blocks for each 4-bar section listed, all built from the same phrase generator (with fresh
 // ids per copy, like the Duplicate action would produce).
 function sections(sectionIndexes, perBar) {
-  return sectionIndexes.map((section) => block(section * SECTION_BEATS, phrase(perBar)));
+  return sectionIndexes.map((section) => block(section * SECTION_BEATS, phrase(perBar), SECTION_BEATS));
 }
 
+// Track volumes in the builders below were balanced by rendering each track solo offline and
+// comparing RMS. The bass sits low mostly because the distortion effect adds a lot of gain.
 function padTrack() {
   const patch = createPresetPatch("Soft Pad");
   return track("Pad", patch, {
@@ -118,7 +96,7 @@ function leadTrack() {
       effect("delay", { time: Number((SECONDS_PER_BEAT * 0.5).toFixed(3)), feedback: 0.25, mix: 0.2 }),
       effect("reverb", { size: 2, mix: 0.2 }),
     ],
-    blocks: [block(2 * SECTION_BEATS, phraseNotes()), block(3 * SECTION_BEATS, octaveUp)],
+    blocks: [block(2 * SECTION_BEATS, phraseNotes(), SECTION_BEATS), block(3 * SECTION_BEATS, octaveUp, SECTION_BEATS)],
   });
 }
 
@@ -137,7 +115,7 @@ function keysTrack() {
 }
 
 export function createDemoProject() {
-  idCounter = 0;
+  resetDemoIds();
   const project = createProject();
   project.tempo = TEMPO;
   project.timeSignature.beatsPerBar = BEATS_PER_BAR;

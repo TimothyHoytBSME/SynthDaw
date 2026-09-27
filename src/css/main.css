@@ -61,6 +61,17 @@ body {
   min-height: 40px;
 }
 
+.project-controls .demo-select {
+  background: #2a2d35;
+  color: var(--fg);
+  border: 1px solid #3a3d46;
+  border-radius: 6px;
+  padding: 0 0.5rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  min-height: 40px;
+}
+
 .project-controls button:disabled {
   opacity: 0.4;
   cursor: default;

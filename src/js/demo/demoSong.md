@@ -1,6 +1,6 @@
 # demoSong.js
 
-`createDemoProject()` returns a complete project, **"Neon Tide"**, loaded by the header's **Load Demo** button ([projectControls.js](../ui/projectControls.md)). It goes through `replaceProjectContents`, so it's undoable, autosaved and exportable. The song is built in code rather than shipped as JSON, so it uses the app's own [presets](../audio/presets.md) and [effect defaults](../audio/effectTypes.md) and stays valid if the patch or effect schema grows. Ids restart at 1 each call; `replaceProjectContents` runs `syncIdCounter` afterwards, so later edits never collide.
+`createDemoProject()` returns a complete project, **"Neon Tide"**, the first entry in the header's **Load Demo…** picker ([demos.js](./demos.md), [projectControls.js](../ui/projectControls.md)). [neonRiptide.js](./neonRiptide.md) is its 64-bar extended remix; this file is kept as the original. It goes through `replaceProjectContents`, so it's undoable, autosaved and exportable. The song is built in code rather than shipped as JSON, so it uses the app's own [presets](../audio/presets.md) and [effect defaults](../audio/effectTypes.md) and stays valid if the patch or effect schema grows. Its note/block/effect/track builders come from [demoKit.js](./demoKit.md). Ids restart at 1 each call; `replaceProjectContents` runs `syncIdCounter` afterwards, so later edits never collide.
 
 **The song:** 112 BPM, 4/4, 16 bars in A minor (Am–F–C–G, one chord per bar), looped over the whole song. It builds in 4-bar sections:
 

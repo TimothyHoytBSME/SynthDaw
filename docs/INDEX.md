@@ -52,3 +52,4 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/core/blockActions.md](../src/js/core/blockActions.md) | Companion doc for `src/js/core/blockActions.js`, selected-block operations shared by toolbar and shortcuts. |
 | [src/js/core/recorder.md](../src/js/core/recorder.md) | Companion doc for `src/js/core/recorder.js`, records live MIDI/keyboard input into a new block. |
 | [src/js/midi/midiMap.md](../src/js/midi/midiMap.md) | Companion doc for `src/js/midi/midiMap.js`, MIDI learn: CC to parameter mappings (localStorage). |
+| [src/js/demo/demoSong.md](../src/js/demo/demoSong.md) | Companion doc for `src/js/demo/demoSong.js`, the built-in demo song (Load Demo) and its feature tour. |

@@ -224,6 +224,9 @@ A full read of every source file plus the running app. Phases 1–12 built a lot
 - Recording latency compensation, count-in.
 - Velocity-lane access to stacked chord notes (needs note selection).
 - Compact transport/toolbars on phone widths (they wrap correctly but use a lot of vertical space).
+- Distortion effect output compensation: it adds about +19 dB on quiet signals, so adding it makes a track jump in level (found while mixing the demo song).
+- Track volume is applied *before* the track's effects (`gainNode -> effectChain -> pan`), so a compressor's automatic makeup gain cancels volume cuts. It should probably be post-effects, like a real fader.
+- Tempo-synced delay times.
 - Phase 11 (cross-platform/perf/a11y), still on hold.
 
 ## Ongoing, every phase

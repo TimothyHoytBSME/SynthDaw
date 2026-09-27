@@ -9,6 +9,7 @@ import {
 import { renderProjectToBuffer } from "../audio/exportRender.js";
 import { audioBufferToWavBlob } from "../audio/wavEncoder.js";
 import { undo, redo, canUndo, canRedo } from "../core/history.js";
+import { createDemoProject } from "../demo/demoSong.js";
 
 const DOWNLOAD_FILENAME = "synthdaw-project.json";
 const WAV_FILENAME = "synthdaw-export.wav";
@@ -49,6 +50,18 @@ export function renderProjectControls(container, project, onReplaced) {
     }
     replaceProjectContents(project, createProject());
     addTrack(project, { name: "Track 1" });
+    onReplaced();
+  });
+
+  const demoButton = document.createElement("button");
+  demoButton.type = "button";
+  demoButton.textContent = "Load Demo";
+  demoButton.title = "Replace the current project with a demo song (undoable)";
+  demoButton.addEventListener("click", () => {
+    if (!window.confirm("Load the demo song? It replaces the current project (Undo brings it back).")) {
+      return;
+    }
+    replaceProjectContents(project, createDemoProject());
     onReplaced();
   });
 
@@ -114,6 +127,7 @@ export function renderProjectControls(container, project, onReplaced) {
     undoButton,
     redoButton,
     newButton,
+    demoButton,
     exportButton,
     exportWavButton,
     importButton,

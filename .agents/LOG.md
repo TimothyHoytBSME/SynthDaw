@@ -203,4 +203,27 @@ Chronological history of notable actions taken by any agent in this project. App
   - **Snare:** at the user's request, Neon Riptide's snare square partial is two octaves lower (octave 3 → 1) and the track is 20% quieter (volume 0.65 → 0.52).
   - **Live output:** the user reported that changes didn't affect playback. Checked and found no code bug: mixer, effect and patch changes reach the audio while playing. Patch changes apply from the next note, not to notes already sounding, so a long pad chord keeps its old sound until the next chord. Before this fix, the patch sliders couldn't be moved at all.
 - Verified in-browser: patch sliders are 210px wide. A real mouse drag moved Osc 1 Level from 60% to 18%, with `input` events firing during the drag, and a real drag on a mixer volume slider moved it from 0.85 to 1.29. During playback with Pluck Arp soloed, setting its instrument Volume to 0 dropped master RMS from 0.027 to 0.003 (only the delay tail left), and restoring it returned 0.030. The track Vol slider behaved the same way.
+- Commit(s): 4390c05
+
+### 2026-09-29 — Neon Riptide polish: tuning and mix balance
+- Agent/Model: Claude Opus 5.5
+- What: The user found Riptide "not quite as nice as the original": the balance between tracks was off, and some frequencies were disharmonic. They also asked that no audio be played from now on unless explicitly requested (saved to memory). All checks were silent offline renders.
+- Method: an in-page harness rendered each track solo and the full mix per section. It measured K-weighted loudness, and used FFT spectral peaks to find energy more than 20 cents off 12-TET or outside A minor. Neon Tide's five tracks measured ≤5%. The new tracks were the problem:
+  - Hats: 82% off-key, because they used an F# note.
+  - Kick: its filter rang at 90 Hz, between notes.
+  - Snare: a +37-cent square partial.
+  - Riser: ±15-cent detune, wide vibrato, and a held E against the F chord.
+  - Bells: a −30-cent partial.
+  - Laser: its filter rang at 150 Hz.
+  - Growl: ±20-cent detune and heavy drive.
+  - Wobble: a resonant sweep over a very low note brought out the flat 7th/11th harmonics.
+- Fixes:
+  - Pitched extras are built on G/D (G fits all four chords). Partials are in tune, and detune is ≤6 cents.
+  - Resonant filters now settle on chord tones (kick A2, laser G2). The kick is shorter.
+  - The wobble moved up an octave with lower resonance.
+  - The master chain went back to Neon Tide's.
+  - Levels were rebalanced: kick and sub down; snare, wobble, hats, bells, growl, laser and riser adjusted.
+  - The pad now plays quietly under both drops for harmonic glue.
+- Result (verified offline): the intro, verse, rises, breakdown and outro are as clean as Neon Tide (≤7% off-pitch, ≤3% off-key). The drops dropped from 31/29% to 19% (drop 1) and 13% (drop 2); what remains is the wobble/growl's natural harmonic series. The verse loudness is −20.4 (Neon Tide −20.3), drops are −19.9/−18.5, and peaks ≤0.78. Render load at 48 kHz with live-style scheduling is ≤0.5× real time everywhere (was 0.6×). The app loads the song with no console errors. **Not listened to:** the user needs to judge the sound.
+- Method note: tuning readings below ~150 Hz are unreliable (FFT resolution ~46–77 cents per bin there; a pure sine read as "98% off"). Fast filter LFOs also create sidebands the metric counts as off-pitch.
 - Commit(s): (this commit)

@@ -44,10 +44,12 @@ const LEAD_PHRASE = [
 ];
 
 const KICK_NOTE = 33;
+// G is the one pitch that sits well over all four chords (Am7, Fadd9, C, G), so the pitched
+// drum and riser parts are built on G (and D, its fifth).
 const SNARE_NOTE = 55;
-// Two inharmonic notes per hat hit: stacked square waves are how analog drum machines faked
-// noise, since oscillators are all we have.
-const HAT_NOTES = [55, 66];
+// Two notes per hat hit, each with a square an octave up: stacked squares are how analog drum
+// machines faked noise. Only their upper harmonics get through the filtering.
+const HAT_NOTES = [55, 62];
 const OPEN_HAT_BEATS = 0.75;
 
 function velocity(value) {
@@ -95,8 +97,12 @@ function padTrack() {
       barsBlock(BUILD, chordBar(78)),
       barsBlock(VERSE, chordBar(74)),
       barsBlock(RISE_1, riseBar),
+      // Quiet under the drops: the wobble only plays roots, fifths and octaves, so the pad
+      // carries the harmony (and the song's vibe) through them.
+      barsBlock(DROP_1, chordBar(50)),
       barsBlock(BREAKDOWN, chordBar(80)),
       barsBlock(RISE_2, riseBar),
+      barsBlock(DROP_2, chordBar(50)),
       barsBlock(OUTRO, (chord, start, barIndex, barCount) =>
         chordBar(ramp(80, 40, barIndex, barCount))(chord, start)),
     ],
@@ -195,12 +201,12 @@ function keysTrack() {
 // ---- New melodic/FX tracks ----
 
 function bellsTrack() {
-  // Two sines almost two octaves apart (ratio ≈3.9, not a harmonic 4) for a glassy, bell-like
-  // partial; no sustain, so each strike rings out on its own decay.
+  // A sine plus a quieter one two octaves up for a glassy, celesta-like tone; no sustain, so
+  // each strike rings out on its own decay.
   const patch = normalizePatch({
     oscillators: [
-      { type: "sine", octave: 0, detune: 0, mix: 0.7 },
-      { type: "sine", octave: 2, detune: -30, mix: 0.3 },
+      { type: "sine", octave: 0, detune: 0, mix: 0.75 },
+      { type: "sine", octave: 2, detune: 0, mix: 0.25 },
     ],
     filter: { type: "lowpass", cutoff: 7000, resonance: 0.5, envAmount: 0 },
     ampEnvelope: { attack: 0.002, decay: 1.8, sustain: 0, release: 1.2 },
@@ -213,7 +219,7 @@ function bellsTrack() {
       [3, chord.arp[barIndex % 2 === 0 ? 1 : 3] + (barIndex % 2 === 0 ? 0 : 2), 1, 72 * scale],
     ]);
   return track("Glass Bells", patch, {
-    volume: 0.7,
+    volume: 0.78,
     pan: 0.25,
     effects: [effect("delay", { time: DOTTED_EIGHTH_SECONDS, feedback: 0.55, mix: 0.4 })],
     blocks: [
@@ -225,25 +231,26 @@ function bellsTrack() {
 }
 
 function riserTrack() {
-  // Slow amp + filter swell under a resonant lowpass, with a fast vibrato for tension. A long
-  // feedback delay stands in for reverb (convolution reverb is the costliest effect by far).
+  // Slow amp + filter swell under a resonant lowpass, with a light vibrato. It holds G (and D),
+  // which sit well over every chord it passes. A long feedback delay stands in for reverb
+  // (convolution reverb is the costliest effect by far).
   const patch = normalizePatch({
     oscillators: [
-      { type: "sawtooth", octave: 0, detune: -15, mix: 0.5 },
-      { type: "sawtooth", octave: 1, detune: 15, mix: 0.35 },
+      { type: "sawtooth", octave: 0, detune: -6, mix: 0.5 },
+      { type: "sawtooth", octave: 1, detune: 6, mix: 0.35 },
     ],
     filter: { type: "lowpass", cutoff: 200, resonance: 6, envAmount: 6000 },
     ampEnvelope: { attack: 4, decay: 0.1, sustain: 1, release: 0.3 },
     filterEnvelope: { attack: 4, decay: 0.1, sustain: 1, release: 0.3 },
-    lfo: { rate: 7, depth: 0.3, target: "pitch" },
+    lfo: { rate: 6, depth: 0.1, target: "pitch" },
     gain: 0.5,
   });
   const swell = ([firstBar, barCount], pitches, vel) =>
     block(firstBar * BEATS_PER_BAR, pitches.map((pitch) => note(pitch, 0, barCount * BEATS_PER_BAR - 0.5, vel)), barCount * BEATS_PER_BAR);
   return track("Riser", patch, {
-    volume: 0.85,
+    volume: 1,
     effects: [effect("delay", { time: DOTTED_EIGHTH_SECONDS, feedback: 0.6, mix: 0.4 })],
-    blocks: [swell([6, 2], [57, 64], 60), swell(RISE_1, [57, 64], 100), swell(RISE_2, [57, 64, 69], 110)],
+    blocks: [swell([6, 2], [55, 67], 60), swell(RISE_1, [55, 67], 100), swell(RISE_2, [55, 62, 67], 110)],
   });
 }
 
@@ -251,15 +258,17 @@ function riserTrack() {
 
 function kickTrack() {
   // A sine body plus a square an octave up whose harmonics a resonant lowpass sweeps down
-  // through in ~70 ms: the sweep reads as the kick's pitch drop and click.
+  // through in ~50 ms: the sweep reads as the kick's pitch drop and click. The filter settles
+  // on 110 Hz (the body's octave) so its ring stays in tune, and the body is kept short so it
+  // doesn't hold an A under the F and G chords.
   const patch = normalizePatch({
     oscillators: [
       { type: "sine", octave: 0, detune: 0, mix: 0.9 },
       { type: "square", octave: 1, detune: 0, mix: 0.35 },
     ],
-    filter: { type: "lowpass", cutoff: 90, resonance: 8, envAmount: 1200 },
-    ampEnvelope: { attack: 0.001, decay: 0.32, sustain: 0, release: 0.05 },
-    filterEnvelope: { attack: 0.001, decay: 0.07, sustain: 0, release: 0.05 },
+    filter: { type: "lowpass", cutoff: 110, resonance: 3, envAmount: 1500 },
+    ampEnvelope: { attack: 0.001, decay: 0.22, sustain: 0, release: 0.04 },
+    filterEnvelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.04 },
     gain: 0.95,
   });
   const kicks = (beats, vel = 118) => (chord, start) => hits(start, beats.map((beat) => [beat, KICK_NOTE, 0.5, vel]));
@@ -275,7 +284,7 @@ function kickTrack() {
     return kicks(barIndex % 2 === 0 ? [0, 1.5] : [0, 0.75, 3.5], 122)(chord, start);
   };
   return track("Kick", patch, {
-    volume: 0.65,
+    volume: 0.55,
     blocks: [
       barsBlock([12, 4], (chord, start, barIndex) => kicks(barIndex === 3 ? [0, 2, 3.5] : [0, 2], 108)(chord, start)),
       barsBlock(VERSE, verseBar),
@@ -289,16 +298,16 @@ function kickTrack() {
 }
 
 function snareTrack() {
-  // Triangle body plus a square an octave (and a detune) up; the filter envelope makes the
-  // crack, and heavy distortion turns the two inharmonic partials' intermodulation into grit.
+  // Triangle body plus a square two octaves up, both on G; the filter envelope makes the crack
+  // and distortion adds grit. Keeping both partials in tune keeps the grit in tune too.
   const patch = normalizePatch({
     oscillators: [
-      { type: "triangle", octave: 0, detune: 0, mix: 0.6 },
-      { type: "square", octave: 1, detune: 37, mix: 0.4 },
+      { type: "triangle", octave: 0, detune: 0, mix: 0.7 },
+      { type: "square", octave: 2, detune: 0, mix: 0.3 },
     ],
-    filter: { type: "lowpass", cutoff: 1500, resonance: 1, envAmount: 6000 },
-    ampEnvelope: { attack: 0.001, decay: 0.18, sustain: 0, release: 0.08 },
-    filterEnvelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.08 },
+    filter: { type: "lowpass", cutoff: 900, resonance: 1, envAmount: 6000 },
+    ampEnvelope: { attack: 0.001, decay: 0.14, sustain: 0, release: 0.06 },
+    filterEnvelope: { attack: 0.001, decay: 0.06, sustain: 0, release: 0.06 },
     gain: 0.6,
   });
   const snares = (rows) => (chord, start) =>
@@ -329,11 +338,11 @@ function snareTrack() {
     return snares(barIndex % 2 === 0 ? [[2, 122]] : [[2, 122], [3.75, 60]])(chord, start);
   };
   return track("Snare", patch, {
-    volume: 0.52,
+    volume: 1.1,
     pan: 0.05,
     effects: [
-      effect("distortion", { drive: 0.9, mix: 0.5 }),
-      effect("eq", { low: -6, mid: 3, high: 4 }),
+      effect("distortion", { drive: 0.5, mix: 0.35 }),
+      effect("eq", { low: -6, mid: 2, high: 3 }),
     ],
     blocks: [
       barsBlock(VERSE, verseBar),
@@ -348,17 +357,18 @@ function snareTrack() {
 }
 
 function hatsTrack() {
-  // Four detuned squares per hit (2 notes × 2 oscillators) through a highpass, the 808's trick.
+  // Four squares per hit (2 notes × 2 oscillators) through a highpass plus an EQ cut, so what's
+  // left is metallic sizzle above ~6 kHz rather than audible pitches.
   // A little sustain means note length matters: short notes are closed hats, long ones open.
   const patch = normalizePatch({
     oscillators: [
-      { type: "square", octave: 1, detune: 0, mix: 0.5 },
-      { type: "square", octave: 2, detune: 37, mix: 0.5 },
+      { type: "square", octave: 2, detune: 0, mix: 0.5 },
+      { type: "square", octave: 3, detune: 0, mix: 0.5 },
     ],
-    filter: { type: "highpass", cutoff: 5000, resonance: 1.2, envAmount: 2000 },
+    filter: { type: "highpass", cutoff: 6500, resonance: 0.7, envAmount: 2000 },
     ampEnvelope: { attack: 0.001, decay: 0.04, sustain: 0.15, release: 0.05 },
     filterEnvelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 },
-    gain: 0.9,
+    gain: 1,
   });
   // rows: [beat, velocity, open?]
   const hatHits = (rows) => (chord, start) =>
@@ -388,8 +398,9 @@ function hatsTrack() {
     return hatHits(rows)(chord, start);
   };
   return track("Hats", patch, {
-    volume: 1.2,
+    volume: 0.85,
     pan: -0.2,
+    effects: [effect("eq", { low: -15, mid: -12, high: 2 })],
     blocks: [
       barsBlock([8, 4], hatHits(offbeats(70))),
       barsBlock([12, 4], hatHits(eighths(80, 50))),
@@ -424,13 +435,15 @@ function wobbleRows(barIndex, barCount, withChops) {
 }
 
 function wobbleTrack() {
-  // Two detuned low oscillators through a resonant lowpass swept by an 8th-note LFO: "wub".
+  // Two detuned oscillators through a resonant lowpass swept by an 8th-note LFO: "wub". It sits
+  // an octave above the Sub: sweeping the lower harmonics of a mid-bass note keeps it musical,
+  // whereas on a very low note the resonance picks out the flat 7th/11th/13th harmonics.
   const patch = normalizePatch({
     oscillators: [
-      { type: "sawtooth", octave: -1, detune: -8, mix: 0.6 },
-      { type: "square", octave: -1, detune: 8, mix: 0.45 },
+      { type: "sawtooth", octave: 0, detune: -5, mix: 0.6 },
+      { type: "square", octave: 0, detune: 5, mix: 0.45 },
     ],
-    filter: { type: "lowpass", cutoff: 400, resonance: 9, envAmount: 0 },
+    filter: { type: "lowpass", cutoff: 400, resonance: 4, envAmount: 0 },
     ampEnvelope: { attack: 0.005, decay: 0.1, sustain: 1, release: 0.08 },
     lfo: { rate: EIGHTH_NOTE_HZ, depth: 0.4, target: "filter" },
     gain: 0.7,
@@ -438,10 +451,10 @@ function wobbleTrack() {
   const wobbleBar = (withChops) => (chord, start, barIndex, barCount) =>
     hits(start, wobbleRows(barIndex, barCount, withChops).map(([beat, length, interval]) => [beat, chord.root + interval, length, 115]));
   return track("Wobble", patch, {
-    volume: 0.42,
+    volume: 0.56,
     effects: [
-      effect("distortion", { drive: 0.6, mix: 0.6 }),
-      effect("eq", { low: -6, mid: 4, high: 2 }),
+      effect("distortion", { drive: 0.45, mix: 0.5 }),
+      effect("eq", { low: -4, mid: 3, high: 1 }),
     ],
     blocks: [barsBlock(DROP_1, wobbleBar(false)), barsBlock(DROP_2, wobbleBar(true))],
   });
@@ -462,7 +475,7 @@ function subTrack() {
   const subBar = (withChops) => (chord, start, barIndex, barCount) =>
     hits(start, wobbleRows(barIndex, barCount, withChops).map(([beat, length]) => [beat, chord.root, length, 110]));
   return track("Sub", patch, {
-    volume: 0.7,
+    volume: 0.55,
     blocks: [barsBlock(DROP_1, subBar(false)), barsBlock(DROP_2, subBar(true))],
   });
 }
@@ -471,10 +484,10 @@ function growlTrack() {
   // Bandpass "vowel" (filter envelope sweeps it open) wobbling at 16ths, then crushed.
   const patch = normalizePatch({
     oscillators: [
-      { type: "sawtooth", octave: 0, detune: -20, mix: 0.5 },
-      { type: "square", octave: 0, detune: 20, mix: 0.5 },
+      { type: "sawtooth", octave: 0, detune: -6, mix: 0.5 },
+      { type: "square", octave: 0, detune: 6, mix: 0.5 },
     ],
-    filter: { type: "bandpass", cutoff: 700, resonance: 5, envAmount: 1500 },
+    filter: { type: "bandpass", cutoff: 700, resonance: 2.5, envAmount: 1500 },
     ampEnvelope: { attack: 0.003, decay: 0.1, sustain: 0.9, release: 0.06 },
     filterEnvelope: { attack: 0.12, decay: 0.2, sustain: 0.3, release: 0.1 },
     lfo: { rate: SIXTEENTH_NOTE_HZ, depth: 0.25, target: "filter" },
@@ -483,26 +496,34 @@ function growlTrack() {
   // Fills the gaps the wobble leaves, plus a descending run into the next section.
   const growlBar = (chord, start, barIndex, barCount) => {
     if (isLastBar(barIndex, barCount)) {
-      return hits(start, [[2.5, chord.root + 12, 0.25, 110], [2.75, chord.root + 10, 0.25, 105], [3, chord.root + 7, 0.25, 110], [3.25, chord.root + 5, 0.25, 105], [3.5, chord.root, 0.5, 118]]);
+      // The last bar is always the G chord, so this run (G F D C G) stays in the key.
+      return hits(start, [
+        [2.5, chord.root + 12, 0.25, 110],
+        [2.75, chord.root + 10, 0.25, 105],
+        [3, chord.root + 7, 0.25, 110],
+        [3.25, chord.root + 5, 0.25, 105],
+        [3.5, chord.root, 0.5, 118],
+      ]);
     }
     return barIndex % 2 === 0 ? hits(start, [[1.5, chord.root + 12, 0.5, 112]]) : [];
   };
   return track("Growl", patch, {
-    volume: 0.5,
+    volume: 0.7,
     pan: -0.15,
-    effects: [effect("distortion", { drive: 0.85, mix: 0.7 })],
+    effects: [effect("distortion", { drive: 0.6, mix: 0.6 })],
     blocks: [barsBlock(DROP_1, growlBar), barsBlock(DROP_2, growlBar)],
   });
 }
 
 function laserTrack() {
-  // A near-self-oscillating lowpass swept down fast: the classic "pew".
+  // A near-self-oscillating lowpass swept down fast: the classic "pew". It only plays over the
+  // G chord, so the sweep comes to rest on G2 (98 Hz).
   const patch = normalizePatch({
     oscillators: [
       { type: "square", octave: 0, detune: 0, mix: 0.6 },
-      { type: "sawtooth", octave: 0, detune: 12, mix: 0.3 },
+      { type: "sawtooth", octave: 0, detune: 0, mix: 0.3 },
     ],
-    filter: { type: "lowpass", cutoff: 150, resonance: 18, envAmount: 7000 },
+    filter: { type: "lowpass", cutoff: 98, resonance: 16, envAmount: 7000 },
     ampEnvelope: { attack: 0.001, decay: 0.25, sustain: 0, release: 0.1 },
     filterEnvelope: { attack: 0.001, decay: 0.18, sustain: 0, release: 0.1 },
     gain: 0.45,
@@ -510,7 +531,7 @@ function laserTrack() {
   const laserBar = (chord, start, barIndex) =>
     barIndex % 4 === 3 ? hits(start, [[3, chord.arp[3], 0.5, 110], [3.5, chord.arp[1], 0.5, 100]]) : [];
   return track("Laser", patch, {
-    volume: 0.55,
+    volume: 0.72,
     pan: 0.4,
     effects: [effect("delay", { time: EIGHTH_SECONDS, feedback: 0.4, mix: 0.35 })],
     blocks: [barsBlock(DROP_1, laserBar), barsBlock(DROP_2, laserBar)],
@@ -538,12 +559,11 @@ export function createNeonRiptideProject() {
     growlTrack(),
     laserTrack(),
   ];
+  // Neon Tide's master chain: gentle enough that the drums don't pump the pad and lead.
+  // Neon Tide's master chain: gentle enough that the drums don't pump the pad and lead.
   project.master = {
-    volume: 0.45,
-    effects: [
-      effect("eq", { low: 2, mid: -1, high: 2 }),
-      effect("compressor", { threshold: -20, ratio: 4, attack: 0.005, release: 0.2 }),
-    ],
+    volume: 0.42,
+    effects: [effect("eq", { low: 1, mid: 0, high: 2 }), effect("compressor", { threshold: -18, ratio: 3 })],
   };
   project.loop = { enabled: true, startBeat: 0, endBeat: SONG_BARS * BEATS_PER_BAR };
   return project;

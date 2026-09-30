@@ -233,3 +233,34 @@ Chronological history of notable actions taken by any agent in this project. App
 - What: Closed out the session. The user is happy with the polished Neon Riptide ("basic, but it's quality... like 32 bit game music"). The working tree is clean, every `.md` is in `docs/INDEX.md`, and every code file has a companion doc. Updated `PLAN.md`'s status line with this session's work and a next-session pointer (new features; top candidates are a noise oscillator + pitch envelope and live patch updates for sounding notes). Added the live-patch-update item to the Backlog. The dev server this session had started was already stopped. No code changes.
 - Standing instruction: don't play audio unless the user asks. Offline renders are fine.
 - Commit(s): (this commit)
+
+### 2026-09-29 — Noise oscillator, pitch envelope, drum presets, live patch edits
+- Agent/Model: Claude Opus 5.5
+- What: The user asked for polish and features at my discretion. Oscillator type `noise` (shared looping white-noise buffer, random start offset) and a per-patch pitch envelope (`amount` semitones, `decay`), with a new editor section. Seven presets: Kick, Snare, Closed Hat, Open Hat, Tom, Zap, Noise Sweep. Patch edits now reach sounding notes: `setTrackPatchParam` emits `patch:param-changed`, and each voice diffs its patch against a snapshot and retargets mix, wave, pitch, filter, sustain, LFO and volume, re-adding any pre-scheduled release. The voice gain was split into envelope (0..1) × level to make volume and tremolo live-editable.
+- Verified (all offline, silent): every Neon Tide and Riptide voice rendered **bit-identical** before/after the refactor (A/B against a HEAD copy of `src/`). Live edits via `OfflineAudioContext.suspend`: volume ×0.25 gave −12 dB with the scheduled release intact, filter/sustain changes landed, an LFO switched on mid-note modulated, wave and octave changes took effect, and `refreshPatch` touched only voices sharing that patch. Presets: kick peak 0.89 sweeping ~150→50 Hz, hats 0.41, all within the instrument presets' range.
+- Commit(s): c19c26b
+
+### 2026-09-29 — Block copy/paste and playhead follow
+- Agent/Model: Claude Opus 5.5
+- What: Ctrl+C/X/V plus toolbar ⎘ Copy / 📋 Paste (in-memory clipboard; paste onto the selected track at the playhead, floored to the beat); `project.copyBlock` generalizes `duplicateBlock`. Timeline **Follow playhead** (default on) page-turns the scroll area while playing.
+- Verified in-browser with the audio output connection blocked in the page (so nothing could sound): real Ctrl+C/Ctrl+V pasted a 12-note block at beat 200 (bar 51.1) and Ctrl+Z removed it; follow turned the page at the right edge, followed seeks and the loop wrap, and left manual scrolling alone when paused.
+- Commit(s): ad82260
+
+### 2026-09-29 — Tempo sync for delay and LFO
+- Agent/Model: Claude Opus 5.5
+- What: `audio/tempoSync.js` divisions (4/1 to 1/32, dotted, triplet). The delay gets a `sync` select param, resolved to `time` inside the effect chain's diff so tempo changes retime it; the LFO gets `lfo.sync` (the engine passes the tempo to voices). The effects UI now supports select params, and synced sliders are dimmed/disabled. `normalizeProject` fills missing effect params from defaults.
+- Verified offline: echo arrival 1/8 @120 = 0.250 s, @100 = 0.300 s, 1/4. @120 = 0.750 s, retimed 120→60 BPM to 0.500 s; amp-LFO periods 1/4 @120 = 0.500 s, @90 = 0.667 s, 1/8 = 0.250 s, off = free rate. A seeded (reverb RNG pinned) full-song A/B of Neon Tide differed by at most 8.8e-6 (≈ −101 dBFS).
+- Commit(s): f55e8a2
+
+### 2026-09-29 — Master level meter
+- Agent/Model: Claude Opus 5.5
+- What: Stereo peak meter (−48 to +3 dBFS, peak hold, clip light that resets on click) in the transport bar. The mixer gained a unity `masterOutput` node, and the live engine taps it with two analysers; the meter never creates the AudioContext.
+- Verified with the output connection blocked: the analysers read 0.16–0.32 peaks in Riptide's drop 2 and the meter drew about −9 dB; an over-full test tone lit the clip light and a click reset it. No overflow at 375 px. The preview pane was hidden, which pauses rAF, so the drawing was tested with a timer-based rAF shim.
+- Commit(s): f9b4a44
+
+### 2026-09-29 — Neon Pulse demo
+- Agent/Model: Claude Opus 5.5
+- What: A third demo showing the new features: 16 bars of house at 124 BPM in A minor (Am–G–F–Em), 11 tracks. Pitch-envelope kick following each chord's root, noise snare and hats, a tom fill, off-beat sub bass, an arp with a 1/8. synced delay, a 1/16 synced-LFO trance gate, zaps with the resonant filter tuned to E6, noise risers. The existing demos are unchanged.
+- Balance: K-weighted momentary max per solo track, relative to the kick: snare −4.8, bass −3.6, arp −8.6, pads/zap about −9.5, hats −12 to −14. The master was trimmed to 0.42 to match Riptide's loudness; mix peaks ≤0.73. Render load with all notes scheduled up front ≤0.47× real time. The snare body moved from E to A after spotting E's clash with the F chord.
+- **Not listened to:** needs the user's ear.
+- Commit(s): becb5b5

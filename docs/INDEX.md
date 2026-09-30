@@ -55,6 +55,7 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/midi/midiMap.md](../src/js/midi/midiMap.md) | Companion doc for `src/js/midi/midiMap.js`, MIDI learn: CC to parameter mappings (localStorage). |
 | [src/js/demo/demoSong.md](../src/js/demo/demoSong.md) | Companion doc for `src/js/demo/demoSong.js`, the original demo song ("Neon Tide") and its feature tour. |
 | [src/js/demo/neonRiptide.md](../src/js/demo/neonRiptide.md) | Companion doc for `src/js/demo/neonRiptide.js`, the 64-bar extended remix ("Neon Riptide"): song map, oscillator drums, dubstep sounds, DSP budget. |
+| [src/js/demo/neonPulse.md](../src/js/demo/neonPulse.md) | Companion doc for `src/js/demo/neonPulse.js`, the 16-bar house demo ("Neon Pulse"): song map, tuning and balance notes. |
 | [src/js/demo/demos.md](../src/js/demo/demos.md) | Companion doc for `src/js/demo/demos.js`, the list of demos shown in the Load Demo picker. |
 | [src/js/audio/tempoSync.md](../src/js/audio/tempoSync.md) | Companion doc for `src/js/audio/tempoSync.js`, note divisions for tempo-synced delay times and LFO rates. |
 | [src/js/demo/demoKit.md](../src/js/demo/demoKit.md) | Companion doc for `src/js/demo/demoKit.js`, note/block/effect/track builders shared by the demos. |

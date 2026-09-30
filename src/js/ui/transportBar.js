@@ -2,6 +2,7 @@ import { setLoopEnabled, setLoopRange, setTempo, setBeatsPerBar, MIN_TEMPO, MAX_
 import { getTransport, setMetronomeEnabled, isMetronomeEnabled } from "../core/transportController.js";
 import { bus } from "../core/eventBus.js";
 import { getAudioState } from "../audio/audioEngine.js";
+import { createLevelMeter } from "./levelMeter.js";
 import {
   startRecording,
   stopRecording,
@@ -107,6 +108,8 @@ export function createTransportBar(project, { onLayoutChange, onTransportAction 
   }
   showAudioState();
 
+  const levelMeter = createLevelMeter();
+
   const position = document.createElement("output");
   position.className = "transport-position";
   position.title = "Position (bar.beat)";
@@ -182,6 +185,7 @@ export function createTransportBar(project, { onLayoutChange, onTransportAction 
     recordButton,
     quantize.label,
     position,
+    levelMeter.element,
     tempo.label,
     beatsPerBar.label,
     metronome.label,
@@ -194,6 +198,9 @@ export function createTransportBar(project, { onLayoutChange, onTransportAction 
     setPosition(beat) {
       position.textContent = formatPosition(beat, project.timeSignature.beatsPerBar);
     },
-    dispose: () => unsubscribers.forEach((unsubscribe) => unsubscribe()),
+    dispose() {
+      levelMeter.dispose();
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    },
   };
 }

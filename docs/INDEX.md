@@ -48,6 +48,7 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/audio/presets.md](../src/js/audio/presets.md) | Companion doc for `src/js/audio/presets.js`, built-in synth patch presets. |
 | [src/js/core/selection.md](../src/js/core/selection.md) | Companion doc for `src/js/core/selection.js`, selected track/block UI state. |
 | [src/js/ui/transportBar.md](../src/js/ui/transportBar.md) | Companion doc for `src/js/ui/transportBar.js`, the play/tempo/loop/position bar. |
+| [src/js/ui/levelMeter.md](../src/js/ui/levelMeter.md) | Companion doc for `src/js/ui/levelMeter.js`, the master output peak meter with clip light. |
 | [src/js/ui/blockToolbar.md](../src/js/ui/blockToolbar.md) | Companion doc for `src/js/ui/blockToolbar.js`, selected-block actions (edit, duplicate, transpose by octaves, delete). |
 | [src/js/core/blockActions.md](../src/js/core/blockActions.md) | Companion doc for `src/js/core/blockActions.js`, selected-block operations shared by toolbar and shortcuts. |
 | [src/js/core/recorder.md](../src/js/core/recorder.md) | Companion doc for `src/js/core/recorder.js`, records live MIDI/keyboard input into a new block. |

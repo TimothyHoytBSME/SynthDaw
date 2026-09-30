@@ -17,4 +17,5 @@ Before this fix the context was created at startup and only resumed as a side ef
 - **Pitch bend:** `midi:pitchbend` (14-bit, centred on 0 after parsing) → `synthEngine.setPitchBend`, ±200 cents on live voices only.
 - **Sequenced notes:** `scheduleNote(note, velocity, startTime, durationSeconds, patch, destination)` (used by [transportController.js](../core/transportController.md)) and `cancelScheduledNotes()` (called on transport stop/pause/seek).
 - **Model -> audio sync:** `attachProject(project)` stores the project, and every `project:changed` queues a `mixer.syncProject(project)` coalesced to one per microtask. The mixer is also synced the moment it's created. UI code never touches the mixer. It only mutates the project through [project.js](../core/project.md).
+- **Metering:** when the context is created, a channel splitter + two `AnalyserNode`s tap `mixer.masterOutput`. `getMasterAnalysers()` returns them, or `null` before audio exists (non-creating, for [levelMeter.js](../ui/levelMeter.md)).
 - `ensureAudioContext()`/`getMasterGain()`/`getMixer()`: accessors for modules that need the same context/graph.

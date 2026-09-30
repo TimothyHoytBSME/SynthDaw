@@ -307,6 +307,32 @@ main {
   border-color: #ff7a5b;
 }
 
+.level-meter {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid #2a2d35;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.level-meter canvas {
+  display: block;
+}
+
+.level-meter-clip {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #3a2020;
+}
+
+.level-meter-clip--on {
+  background: #ff3b30;
+  box-shadow: 0 0 6px #ff3b30;
+}
+
 .transport-audio-status {
   font-size: 0.75rem;
   color: #ffb35b;

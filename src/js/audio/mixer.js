@@ -7,7 +7,10 @@ function setParamIfChanged(param, value) {
 }
 
 export function createMixer(audioContext, masterGain) {
-  const masterChain = createEffectChain(audioContext, audioContext.destination);
+  // The final node before the speakers, exposed so the live engine can meter it.
+  const masterOutput = audioContext.createGain();
+  masterOutput.connect(audioContext.destination);
+  const masterChain = createEffectChain(audioContext, masterOutput);
   masterGain.disconnect();
   masterGain.connect(masterChain.input);
 
@@ -34,6 +37,7 @@ export function createMixer(audioContext, masterGain) {
   }
 
   return {
+    masterOutput,
     getTrackBus,
     // Reconciles the whole audio graph against the project's plain data: disposes buses for
     // tracks that no longer exist, creates buses for new ones, and applies volume/pan/mute/solo

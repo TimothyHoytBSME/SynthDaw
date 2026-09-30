@@ -23,6 +23,7 @@ let synthEngine = null;
 let mixer = null;
 let project = null;
 let mixerSyncQueued = false;
+let masterAnalysers = null;
 const fallbackPatch = createDefaultPatch();
 
 function syncMixer() {
@@ -52,10 +53,23 @@ function ensureContext() {
     masterGain = audioContext.createGain();
     synthEngine = createSynthEngine(audioContext, masterGain);
     mixer = createMixer(audioContext, masterGain); // routes masterGain -> master effect chain -> destination
+    masterAnalysers = createStereoAnalysers(audioContext, mixer.masterOutput);
     audioContext.addEventListener("statechange", () => bus.emit("audio:state", { state: audioContext.state }));
     syncMixer();
   }
   return audioContext;
+}
+
+// A side tap for the level meter (analysers process without being connected onward).
+function createStereoAnalysers(context, source) {
+  const splitter = context.createChannelSplitter(2);
+  source.connect(splitter);
+  return [0, 1].map((channel) => {
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 2048; // ~43 ms at 48 kHz: longer than a frame, so no peak falls between reads
+    splitter.connect(analyser, channel);
+    return analyser;
+  });
 }
 
 // Sticky activation: true once the user has clicked/tapped/typed on the page at all. Before
@@ -127,6 +141,12 @@ export function attachProject(theProject) {
 // own state ("running", "suspended", "interrupted", "closed").
 export function getAudioState() {
   return audioContext?.state ?? "not-started";
+}
+
+// [left, right] analysers on the final output, or null before audio has started. Never
+// creates the context (the meter polls this from page load).
+export function getMasterAnalysers() {
+  return masterAnalysers;
 }
 
 export function ensureAudioContext() {

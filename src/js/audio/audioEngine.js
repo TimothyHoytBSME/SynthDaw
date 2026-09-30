@@ -112,6 +112,7 @@ export function initAudioEngine() {
   bus.on("note:off", handleNoteOff);
   bus.on("midi:pitchbend", handlePitchBend);
   bus.on("project:changed", queueMixerSync);
+  bus.on("patch:param-changed", ({ patch }) => synthEngine?.refreshPatch(patch));
 }
 
 // The audio graph follows the project: every project:changed re-syncs the mixer from this

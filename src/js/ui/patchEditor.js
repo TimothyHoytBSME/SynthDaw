@@ -50,6 +50,13 @@ export const PATCH_SECTIONS = [
   { title: "Amp envelope", fields: envelopeFields("ampEnvelope") },
   { title: "Filter envelope", fields: envelopeFields("filterEnvelope") },
   {
+    title: "Pitch envelope",
+    fields: [
+      { path: "pitchEnvelope.amount", label: "Amount", min: -48, max: 48, step: 1, unit: "st", format: signed },
+      { path: "pitchEnvelope.decay", label: "Decay", min: 0.005, max: 2, scale: "log", format: seconds },
+    ],
+  },
+  {
     title: "LFO",
     fields: [
       { path: "lfo.target", label: "Target", kind: "select", options: LFO_TARGETS },

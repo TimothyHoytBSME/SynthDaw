@@ -91,7 +91,12 @@ export function setTrackPatchParam(track, path, value) {
   const keys = path.split(".");
   const lastKey = keys.pop();
   const target = keys.reduce((object, key) => object[key], track.patch);
+  if (target[lastKey] === value) {
+    return;
+  }
   setIfChanged(target, lastKey, value);
+  // Lets the audio engine update notes already sounding with this patch.
+  bus.emit("patch:param-changed", { patch: track.patch, path });
 }
 
 export function removeTrack(project, trackId) {

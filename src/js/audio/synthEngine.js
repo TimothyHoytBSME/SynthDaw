@@ -63,6 +63,20 @@ export function createSynthEngine(audioContext, defaultDestination) {
       scheduledVoices.add(voice);
       voice.onEnded(() => scheduledVoices.delete(voice));
     },
+    // A patch was edited in place: every voice playing that patch (live or sequenced) moves
+    // its sounding parameters to the new values.
+    refreshPatch(patch) {
+      for (const { voice } of activeVoices.values()) {
+        if (voice.patch === patch) {
+          voice.refresh();
+        }
+      }
+      for (const voice of scheduledVoices) {
+        if (voice.patch === patch) {
+          voice.refresh();
+        }
+      }
+    },
     // Silences every sequenced voice — sounding or still waiting to start — with a short
     // fade, for when the transport stops/pauses/seeks and what was scheduled is now wrong.
     cancelScheduled() {

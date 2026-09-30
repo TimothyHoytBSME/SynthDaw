@@ -13,7 +13,7 @@ Everything is plain JSON with no audio or DOM references. It's mutated in place 
 **Every mutator emits `project:changed`.** That drives autosave ([persistence.js](./persistence.md)), undo ([history.js](./history.md)), the audio-graph sync ([audioEngine.js](../audio/audioEngine.md)) and the transport sync ([transportController.js](./transportController.md)). A new mutator that skips `notifyChanged()` breaks all four. Drag-driven setters use `setIfChanged`, so a `pointermove` that doesn't change the snapped value emits nothing.
 
 Mutators:
-- Tracks: `addTrack`, `removeTrack`, `renameTrack`, `setTrackVolume/Pan/Muted/Soloed`, `setTrackPatch`, `setTrackPatchParam(track, "filter.cutoff", v)`.
+- Tracks: `addTrack`, `removeTrack`, `renameTrack`, `setTrackVolume/Pan/Muted/Soloed`, `setTrackPatch`, `setTrackPatchParam(track, "filter.cutoff", v)` (also emits `patch:param-changed { patch, path }` so sounding notes update).
 - Blocks: `addBlock`, `removeBlock`, `moveBlock`, `resizeBlock`, `duplicateBlock` (placed right after the original, with fresh ids), `moveBlockToTrack`, and `transposeBlock(block, semitones)`. The transpose is **all-or-nothing**: it returns `false` and changes nothing if any note would leave `LOWEST_NOTE..HIGHEST_NOTE`, because shifting only some notes would silently change intervals.
 - Notes: `addNote`, `removeNote`, `moveNote`, `resizeNote`, `setNotePitch`, `setNoteVelocity`.
 - Global: `setTempo` (clamped to `MIN_TEMPO..MAX_TEMPO`), `setBeatsPerBar`, `setLoopEnabled`, `setLoopRange`, `setMasterVolume`.

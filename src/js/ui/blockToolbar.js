@@ -1,6 +1,9 @@
 import { bus } from "../core/eventBus.js";
 import { getSelectedTrack, getSelectedBlock } from "../core/selection.js";
 import {
+  copySelectedBlock,
+  hasClipboardBlock,
+  pasteBlock,
   duplicateSelectedBlock,
   deleteSelectedBlock,
   transposeSelectedBlock,
@@ -72,6 +75,7 @@ export function createBlockToolbar(project, { onEditNotes }) {
       }
     }),
     button("⧉ Duplicate", "Duplicate after itself (Ctrl+D)", () => duplicateSelectedBlock(project)),
+    button("⎘ Copy", "Copy block (Ctrl+C; Ctrl+X cuts)", () => copySelectedBlock(project)),
     transposeGroup,
     button("🗑 Delete", "Delete block (Delete)", () => deleteSelectedBlock(project)),
   );
@@ -81,11 +85,17 @@ export function createBlockToolbar(project, { onEditNotes }) {
   message.setAttribute("role", "status");
   let messageTimer = null;
 
-  bar.append(label, actions, message);
+  // Outside `actions` so it's also there with no block selected (paste needs only a track).
+  const pasteButton = button("📋 Paste", "Paste the copied block at the playhead on the selected track (Ctrl+V)", () =>
+    pasteBlock(project),
+  );
+
+  bar.append(label, actions, pasteButton, message);
 
   function refresh() {
     const block = getSelectedBlock(project);
     actions.hidden = !block;
+    pasteButton.hidden = !hasClipboardBlock() || !getSelectedTrack(project);
     if (!block) {
       label.textContent = HINT;
       return;
@@ -105,6 +115,7 @@ export function createBlockToolbar(project, { onEditNotes }) {
     bus.on("selection:changed", refresh),
     bus.on("project:changed", refresh),
     bus.on("status:message", showMessage),
+    bus.on("clipboard:changed", refresh),
   ];
   refresh();
 

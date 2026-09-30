@@ -8,6 +8,8 @@ Global shortcuts, set up by `initKeyboardShortcuts(project)`. They're ignored wh
 | Ctrl/Cmd+Z | Undo ([history.js](./history.md)) |
 | Ctrl/Cmd+Shift+Z, Ctrl/Cmd+Y | Redo |
 | Ctrl/Cmd+D | Duplicate selected block |
+| Ctrl/Cmd+C / Ctrl/Cmd+X | Copy / cut selected block (only claimed when a block is selected) |
+| Ctrl/Cmd+V | Paste the copied block at the playhead on the selected track |
 | Delete / Backspace | Delete selected block |
 | ↑ / ↓ | Transpose selected block ±1 semitone |
 | Shift+↑ / Shift+↓ | Transpose selected block ±1 octave |

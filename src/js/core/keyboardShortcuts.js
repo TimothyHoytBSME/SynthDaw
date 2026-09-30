@@ -2,6 +2,9 @@ import { getTransport } from "./transportController.js";
 import { undo, redo } from "./history.js";
 import { clearBlockSelection, getSelectedBlock } from "./selection.js";
 import {
+  copySelectedBlock,
+  cutSelectedBlock,
+  pasteBlock,
   deleteSelectedBlock,
   duplicateSelectedBlock,
   transposeSelectedBlock,
@@ -66,6 +69,12 @@ function handleModifiedKey(event, project) {
     redo();
   } else if (key === "d") {
     duplicateSelectedBlock(project);
+  } else if (key === "c" && getSelectedBlock(project)) {
+    copySelectedBlock(project);
+  } else if (key === "x" && getSelectedBlock(project)) {
+    cutSelectedBlock(project);
+  } else if (key === "v") {
+    pasteBlock(project);
   } else {
     return false;
   }

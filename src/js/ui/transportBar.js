@@ -36,7 +36,7 @@ function numberField(labelText, { min, max, step, value }) {
   return { label, input };
 }
 
-function checkboxField(labelText, checked) {
+export function checkboxField(labelText, checked) {
   const label = document.createElement("label");
   label.className = "transport-field";
   const input = document.createElement("input");

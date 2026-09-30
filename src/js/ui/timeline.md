@@ -3,7 +3,7 @@
 The main arrangement view. `renderTimeline(container, project)` builds, top to bottom:
 
 1. The [transport bar](./transportBar.md).
-2. A view bar: "+ Track", horizontal zoom (6–160 px/beat) and vertical zoom (40–160px rows).
+2. A view bar: "+ Track", horizontal zoom (6–160 px/beat), vertical zoom (40–160px rows) and **Follow playhead** (on by default, kept in the module-level `view`). While the transport runs, `followPlayhead()` (in the rAF playhead loop) page-turns the scroll area when the playhead passes the right edge or is left of the view (seek, loop wrap), putting it 10% into the visible lanes. It never scrolls while stopped, so manual scrolling isn't fought.
 3. The [block toolbar](./blockToolbar.md) (selected-block actions, including transpose).
 4. The scrolling grid: ruler, track rows, loop overlay, playhead.
 5. The piano-roll panel ([pianoRoll.js](./pianoRoll.md)).

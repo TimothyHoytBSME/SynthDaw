@@ -89,6 +89,10 @@ export function getPositionBeats() {
   return transport ? transport.getPositionBeats() : 0;
 }
 
+export function isTransportRunning() {
+  return transport?.isRunning() ?? false;
+}
+
 export function setProject(nextProject) {
   project = nextProject;
   syncFromProject();

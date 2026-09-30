@@ -7,11 +7,11 @@ import {
   resizeBlock,
   moveBlockToTrack,
 } from "../core/project.js";
-import { getTransport, getPositionBeats } from "../core/transportController.js";
+import { getTransport, getPositionBeats, isTransportRunning } from "../core/transportController.js";
 import { bus } from "../core/eventBus.js";
 import { getSelectedTrack, getSelection, selectTrack, selectBlock, findBlock } from "../core/selection.js";
 import { renderPianoRoll } from "./pianoRoll.js";
-import { createTransportBar } from "./transportBar.js";
+import { createTransportBar, checkboxField } from "./transportBar.js";
 import { createBlockToolbar } from "./blockToolbar.js";
 
 const MIN_PIXELS_PER_BEAT = 6;
@@ -27,9 +27,13 @@ const MIN_BEAT_TICK_SPACING_PX = 10;
 const MIN_NOTE_PREVIEW_RANGE = 12;
 // Must match the header width baked into the `.timeline-track-header` CSS rule.
 const TRACK_HEADER_WIDTH = 120;
+// Follow mode turns the page when the playhead gets this close to the right edge, and puts
+// it this far (as a fraction of the visible lane width) from the left edge.
+const FOLLOW_EDGE_PX = 24;
+const FOLLOW_LEAD_FRACTION = 0.1;
 
 // Module-level so zoom and the open piano roll survive full re-renders (undo/redo/import).
-const view = { pixelsPerBeat: 40, trackHeight: 64 };
+const view = { pixelsPerBeat: 40, trackHeight: 64, follow: true };
 let pianoRollBlockId = null;
 
 function rangeField(labelText, min, max, value) {
@@ -90,7 +94,10 @@ export function renderTimeline(container, project) {
   addTrackButton.textContent = "+ Track";
   const hZoom = rangeField("Zoom ↔", MIN_PIXELS_PER_BEAT, MAX_PIXELS_PER_BEAT, view.pixelsPerBeat);
   const vZoom = rangeField("Zoom ↕", MIN_TRACK_HEIGHT, MAX_TRACK_HEIGHT, view.trackHeight);
-  viewBar.append(addTrackButton, hZoom.label, vZoom.label);
+  const follow = checkboxField("Follow playhead", view.follow);
+  follow.label.title = "Scroll the timeline to keep the playhead in view while playing";
+  follow.input.addEventListener("change", () => (view.follow = follow.input.checked));
+  viewBar.append(addTrackButton, hZoom.label, vZoom.label, follow.label);
 
   const blockToolbar = createBlockToolbar(project, { onEditNotes: openPianoRoll });
 
@@ -226,6 +233,21 @@ export function renderTimeline(container, project) {
     const beat = getPositionBeats();
     playhead.style.transform = `translateX(${beat * view.pixelsPerBeat}px)`;
     transportBar.setPosition(beat);
+  }
+
+  // Page-turn scrolling (not continuous), so the lanes stay readable while playing. Also
+  // catches a loop wrapping back to a point left of the view.
+  function followPlayhead() {
+    if (!view.follow || !isTransportRunning()) {
+      return;
+    }
+    const x = TRACK_HEADER_WIDTH + getPositionBeats() * view.pixelsPerBeat;
+    const visibleLeft = scrollArea.scrollLeft + TRACK_HEADER_WIDTH;
+    const visibleRight = scrollArea.scrollLeft + scrollArea.clientWidth - FOLLOW_EDGE_PX;
+    if (x < visibleLeft || x > visibleRight) {
+      const laneWidth = scrollArea.clientWidth - TRACK_HEADER_WIDTH;
+      scrollArea.scrollLeft = x - TRACK_HEADER_WIDTH - laneWidth * FOLLOW_LEAD_FRACTION;
+    }
   }
 
   function seekToClientX(clientX) {
@@ -457,6 +479,7 @@ export function renderTimeline(container, project) {
   let animationFrame = 0;
   function updatePlayheadLoop() {
     syncPlayhead();
+    followPlayhead();
     animationFrame = requestAnimationFrame(updatePlayheadLoop);
   }
 

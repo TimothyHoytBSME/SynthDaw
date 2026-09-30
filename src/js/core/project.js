@@ -134,17 +134,23 @@ export function resizeBlock(block, newLengthBeats) {
   setIfChanged(block, "lengthBeats", Math.max(MIN_LENGTH_BEATS, newLengthBeats));
 }
 
-// Places a copy (with fresh ids) immediately after the original on the same track.
-export function duplicateBlock(track, block) {
+// Adds a copy of `block` (fresh ids) to `track` at `startBeat`. The source can be a block
+// from any track, or a detached one (the clipboard).
+export function copyBlock(track, block, startBeat) {
   const copy = {
     id: nextId("block"),
-    startBeat: block.startBeat + block.lengthBeats,
+    startBeat: Math.max(0, startBeat),
     lengthBeats: block.lengthBeats,
     notes: block.notes.map((note) => ({ ...note, id: nextId("note") })),
   };
   track.blocks.push(copy);
   notifyChanged();
   return copy;
+}
+
+// Places a copy immediately after the original on the same track.
+export function duplicateBlock(track, block) {
+  return copyBlock(track, block, block.startBeat + block.lengthBeats);
 }
 
 export function moveBlockToTrack(block, fromTrack, toTrack) {

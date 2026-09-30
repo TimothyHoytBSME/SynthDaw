@@ -226,4 +226,10 @@ Chronological history of notable actions taken by any agent in this project. App
   - The pad now plays quietly under both drops for harmonic glue.
 - Result (verified offline): the intro, verse, rises, breakdown and outro are as clean as Neon Tide (≤7% off-pitch, ≤3% off-key). The drops dropped from 31/29% to 19% (drop 1) and 13% (drop 2); what remains is the wobble/growl's natural harmonic series. The verse loudness is −20.4 (Neon Tide −20.3), drops are −19.9/−18.5, and peaks ≤0.78. Render load at 48 kHz with live-style scheduling is ≤0.5× real time everywhere (was 0.6×). The app loads the song with no console errors. **Not listened to:** the user needs to judge the sound.
 - Method note: tuning readings below ~150 Hz are unreliable (FFT resolution ~46–77 cents per bin there; a pure sine read as "98% off"). Fast filter LFOs also create sidebands the metric counts as off-pitch.
+- Commit(s): e2983dc
+
+### 2026-09-29 — Session wrap-up
+- Agent/Model: Claude Opus 5.5
+- What: Closed out the session. The user is happy with the polished Neon Riptide ("basic, but it's quality... like 32 bit game music"). The working tree is clean, every `.md` is in `docs/INDEX.md`, and every code file has a companion doc. Updated `PLAN.md`'s status line with this session's work and a next-session pointer (new features; top candidates are a noise oscillator + pitch envelope and live patch updates for sounding notes). Added the live-patch-update item to the Backlog. The dev server this session had started was already stopped. No code changes.
+- Standing instruction: don't play audio unless the user asks. Offline renders are fine.
 - Commit(s): (this commit)

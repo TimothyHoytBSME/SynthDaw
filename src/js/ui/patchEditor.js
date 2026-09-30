@@ -3,6 +3,7 @@ import { setTrackPatch, setTrackPatchParam } from "../core/project.js";
 import { getSelectedTrack, getSelection } from "../core/selection.js";
 import { OSC_TYPES, FILTER_TYPES, LFO_TARGETS } from "../audio/patch.js";
 import { PRESET_NAMES, createPresetPatch } from "../audio/presets.js";
+import { SYNC_DIVISIONS } from "../audio/tempoSync.js";
 import {
   startLearning,
   cancelLearning,
@@ -60,7 +61,9 @@ export const PATCH_SECTIONS = [
     title: "LFO",
     fields: [
       { path: "lfo.target", label: "Target", kind: "select", options: LFO_TARGETS },
-      { path: "lfo.rate", label: "Rate", min: 0.05, max: 20, scale: "log", format: hertz },
+      { path: "lfo.sync", label: "Sync", kind: "select", options: SYNC_DIVISIONS },
+      // `syncedBy`: dimmed while that select isn't "off" (the synced division sets the rate).
+      { path: "lfo.rate", label: "Rate", min: 0.05, max: 20, scale: "log", format: hertz, syncedBy: "lfo.sync" },
       { path: "lfo.depth", label: "Depth", min: 0, max: 1, step: 0.01, format: percent },
     ],
   },
@@ -232,6 +235,13 @@ export function renderPatchEditor(container, project) {
     });
     header.appendChild(presetSelect);
 
+    const syncedRows = [];
+    const refreshSyncedRows = () => {
+      for (const { row, field } of syncedRows) {
+        row.classList.toggle("patch-field--synced", getByPath(track.patch, field.syncedBy) !== "off");
+      }
+    };
+
     const sections = document.createElement("div");
     sections.className = "patch-sections";
     for (const section of PATCH_SECTIONS) {
@@ -249,7 +259,10 @@ export function renderPatchEditor(container, project) {
         row.appendChild(labelText);
 
         const value = getByPath(track.patch, field.path);
-        const onChange = (next) => setTrackPatchParam(track, field.path, next);
+        const onChange = (next) => {
+          setTrackPatchParam(track, field.path, next);
+          refreshSyncedRows();
+        };
         const control =
           field.kind === "select"
             ? createSelectField(field, value, onChange)
@@ -262,10 +275,14 @@ export function renderPatchEditor(container, project) {
         }
         row.appendChild(control.element);
         fieldset.appendChild(row);
+        if (field.syncedBy) {
+          syncedRows.push({ row, field });
+        }
       }
       sections.appendChild(fieldset);
     }
     container.appendChild(sections);
+    refreshSyncedRows();
   }
 
   // A mapped controller moved: drive that parameter on whichever track is selected.

@@ -4,16 +4,26 @@ import { createReverbEffect } from "./effects/reverb.js";
 import { createCompressorEffect } from "./effects/compressor.js";
 import { createChorusEffect } from "./effects/chorus.js";
 import { createEQEffect } from "./effects/eq.js";
+import { SYNC_DIVISIONS, syncedSeconds } from "./tempoSync.js";
+
+const MAX_DELAY_SECONDS = 2; // matches effects/delay.js
 
 export const EFFECT_TYPES = {
   delay: {
     label: "Delay",
     create: createDelayEffect,
     paramDefs: [
-      { name: "time", label: "Time (s)", min: 0.01, max: 1, step: 0.01, default: 0.3 },
+      { name: "sync", label: "Sync", kind: "select", options: SYNC_DIVISIONS, default: "off" },
+      // `syncedBy`: the UI disables this slider while that param isn't "off".
+      { name: "time", label: "Time (s)", min: 0.01, max: 1, step: 0.01, default: 0.3, syncedBy: "sync" },
       { name: "feedback", label: "Feedback", min: 0, max: 0.9, step: 0.01, default: 0.35 },
       { name: "mix", label: "Mix", min: 0, max: 1, step: 0.01, default: 0.3 },
     ],
+    // Synced: `time` follows the tempo (sent to the effect as a plain time change).
+    resolveParams(params, tempo) {
+      const synced = syncedSeconds(params.sync, tempo);
+      return synced === null ? params : { ...params, time: Math.min(MAX_DELAY_SECONDS, synced) };
+    },
   },
   distortion: {
     label: "Distortion",
@@ -60,6 +70,11 @@ export const EFFECT_TYPES = {
     ],
   },
 };
+
+// The params an effect node actually receives: tempo-dependent ones worked out.
+export function resolveEffectParams(type, params, tempo) {
+  return EFFECT_TYPES[type].resolveParams?.(params, tempo) ?? params;
+}
 
 export function defaultParamsFor(type) {
   const params = {};

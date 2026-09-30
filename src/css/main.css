@@ -605,6 +605,21 @@ main {
   accent-color: var(--accent);
 }
 
+.mixer-effect-field select {
+  background: #101216;
+  color: var(--fg);
+  border: 1px solid #3a3d46;
+  border-radius: 4px;
+  padding: 0.2rem;
+  min-height: 32px;
+}
+
+/* A free-running value that a tempo-sync setting currently overrides. */
+.mixer-effect-field input:disabled,
+.patch-field--synced {
+  opacity: 0.4;
+}
+
 .patch-header {
   display: flex;
   flex-wrap: wrap;

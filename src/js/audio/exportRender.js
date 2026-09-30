@@ -37,6 +37,7 @@ export async function renderProjectToBuffer(project) {
   mixer.syncProject(project);
 
   const synthEngine = createSynthEngine(offlineContext, masterGain);
+  synthEngine.setTempo(project.tempo);
 
   for (const playable of playableNotes(project)) {
     synthEngine.scheduleNote(

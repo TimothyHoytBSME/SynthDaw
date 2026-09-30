@@ -1,5 +1,6 @@
 import { bus } from "./eventBus.js";
 import { createDefaultPatch, normalizePatch, clonePatch } from "../audio/patch.js";
+import { defaultParamsFor } from "../audio/effectTypes.js";
 
 let idCounter = 0;
 
@@ -50,9 +51,17 @@ export function normalizeProject(project) {
   project.master = { ...defaults.master, ...project.master };
   project.loop = { ...defaults.loop, ...project.loop };
   project.tracks ??= [];
+  const normalizeEffects = (owner) => {
+    owner.effects ??= [];
+    for (const effect of owner.effects) {
+      effect.params = { ...defaultParamsFor(effect.type), ...effect.params };
+    }
+  };
+  normalizeEffects(project.master);
   project.tracks.forEach((track, index) => {
     Object.assign(track, { ...createTrackDefaults(), name: `Track ${index + 1}`, ...track });
     track.patch = normalizePatch(track.patch);
+    normalizeEffects(track);
     for (const block of track.blocks) {
       block.notes ??= [];
       for (const note of block.notes) {

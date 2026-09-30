@@ -1,4 +1,5 @@
 import { noteToFrequency } from "./pitch.js";
+import { syncedSeconds } from "./tempoSync.js";
 
 const TAIL_SECONDS = 0.02;
 const CENTS_PER_OCTAVE = 1200;
@@ -84,7 +85,7 @@ function createSource(audioContext, oscPatch, frequency, detune) {
 //
 // Graph: sources -> oscGain (mix) -> filter -> envGain (ADSR, 0..1) -> levelGain -> destination.
 // levelGain carries patch.gain * velocity and, for the amp LFO target, the tremolo.
-export function createVoice(audioContext, destination, note, velocity, patch, bendCents = 0) {
+export function createVoice(audioContext, destination, note, velocity, patch, { bendCents = 0, tempo = 120 } = {}) {
   const baseFrequency = noteToFrequency(note);
   const velocityScale = velocity / 127;
   let applied = JSON.parse(JSON.stringify(patch));
@@ -122,6 +123,11 @@ export function createVoice(audioContext, destination, note, velocity, patch, be
   let lfo = null;
   let lfoDepthGain = null;
   let lfoTarget = null;
+
+  function lfoRate() {
+    const period = syncedSeconds(patch.lfo.sync, tempo);
+    return period === null ? patch.lfo.rate : 1 / period;
+  }
 
   function lfoParams(target) {
     if (target === "pitch") {
@@ -168,7 +174,7 @@ export function createVoice(audioContext, destination, note, velocity, patch, be
       return;
     }
     lfo = audioContext.createOscillator();
-    lfo.frequency.value = patch.lfo.rate;
+    lfo.frequency.value = lfoRate();
     lfoDepthGain = audioContext.createGain();
     lfoDepthGain.gain.value = 0;
     lfo.connect(lfoDepthGain);
@@ -255,8 +261,8 @@ export function createVoice(audioContext, destination, note, velocity, patch, be
     }
     if (lfo) {
       routeLfo();
-      if (changed((p) => p.lfo.rate)) {
-        setSmoothly(lfo.frequency, patch.lfo.rate, now);
+      if (changed((p) => p.lfo.rate) || changed((p) => p.lfo.sync)) {
+        setSmoothly(lfo.frequency, lfoRate(), now);
       }
     }
     applyLevelAndLfoDepth(now);

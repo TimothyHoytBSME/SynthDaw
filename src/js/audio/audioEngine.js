@@ -29,6 +29,7 @@ function syncMixer() {
   mixerSyncQueued = false;
   if (mixer && project) {
     mixer.syncProject(project);
+    synthEngine.setTempo(project.tempo);
   }
 }
 

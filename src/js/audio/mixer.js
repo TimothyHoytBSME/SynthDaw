@@ -55,11 +55,11 @@ export function createMixer(audioContext, masterGain) {
         const silent = track.muted || (anySoloed && !track.soloed);
         setParamIfChanged(bus.gainNode.gain, silent ? 0 : track.volume);
         setParamIfChanged(bus.panNode.pan, track.pan);
-        bus.effectChain.sync(track.effects);
+        bus.effectChain.sync(track.effects, project.tempo);
       }
 
       setParamIfChanged(masterGain.gain, project.master.volume);
-      masterChain.sync(project.master.effects);
+      masterChain.sync(project.master.effects, project.tempo);
     },
   };
 }

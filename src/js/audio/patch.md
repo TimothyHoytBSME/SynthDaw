@@ -1,6 +1,6 @@
 # patch.js
 
-The plain-JSON synth patch model: 2 oscillators (`type` ∈ sine/sawtooth/square/triangle/noise, `octave` −3…+3, `detune` in cents, `mix`), a filter (`type`, `cutoff`, `resonance`, `envAmount`), amp and filter ADSR envelopes, a pitch envelope (`amount` in semitones, 0 = off; `decay` in seconds), one LFO (`rate`, `depth`, `target` ∈ pitch/filter/amp) and an output `gain`. There's no UI or audio code here. [voice.js](./voice.md) turns a patch into nodes.
+The plain-JSON synth patch model: 2 oscillators (`type` ∈ sine/sawtooth/square/triangle/noise, `octave` −3…+3, `detune` in cents, `mix`), a filter (`type`, `cutoff`, `resonance`, `envAmount`), amp and filter ADSR envelopes, a pitch envelope (`amount` in semitones, 0 = off; `decay` in seconds), one LFO (`rate`, `depth`, `target` ∈ pitch/filter/amp, `sync`: a [tempoSync.js](./tempoSync.md) division that overrides `rate`, or `"off"`) and an output `gain`. There's no UI or audio code here. [voice.js](./voice.md) turns a patch into nodes.
 
 Since Phase 14, every [Track](../core/project.md) owns a `patch` (persisted, undoable, exported). The `OSC_TYPES`/`FILTER_TYPES`/`LFO_TARGETS` option lists live here so the editor and presets share them.
 

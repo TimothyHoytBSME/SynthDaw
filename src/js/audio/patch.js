@@ -16,7 +16,8 @@ export function createDefaultPatch() {
     // (drum kicks, zaps). 0 = off.
     pitchEnvelope: { amount: 0, decay: 0.08 },
     // depth is a normalized 0–1 amount; voice.js scales it per target (cents, Hz, or gain).
-    lfo: { rate: 5, depth: 0, target: "pitch" },
+    // sync: a note division from tempoSync.js ("1/8", ...) overrides rate; "off" = free rate.
+    lfo: { rate: 5, depth: 0, target: "pitch", sync: "off" },
     gain: 0.7,
   };
 }

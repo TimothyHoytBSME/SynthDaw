@@ -68,6 +68,15 @@ function renderEffectsSection(container, effectsOwner) {
 
     row.appendChild(header);
 
+    const inputs = new Map();
+    const refreshSyncedInputs = () => {
+      for (const paramDef of definition.paramDefs) {
+        if (paramDef.syncedBy) {
+          inputs.get(paramDef.name).disabled = effect.params[paramDef.syncedBy] !== "off";
+        }
+      }
+    };
+
     for (const paramDef of definition.paramDefs) {
       const fieldLabel = document.createElement("label");
       fieldLabel.className = "mixer-effect-field";
@@ -75,18 +84,33 @@ function renderEffectsSection(container, effectsOwner) {
       fieldText.textContent = paramDef.label;
       fieldLabel.appendChild(fieldText);
 
-      const input = document.createElement("input");
-      input.type = "range";
-      input.min = String(paramDef.min);
-      input.max = String(paramDef.max);
-      input.step = String(paramDef.step);
-      input.value = String(effect.params[paramDef.name]);
-      input.addEventListener("input", () => {
-        setEffectParam(effect, paramDef.name, Number(input.value));
-      });
+      let input;
+      if (paramDef.kind === "select") {
+        input = document.createElement("select");
+        for (const option of paramDef.options) {
+          input.append(new Option(option, option));
+        }
+        input.value = effect.params[paramDef.name];
+        input.addEventListener("change", () => {
+          setEffectParam(effect, paramDef.name, input.value);
+          refreshSyncedInputs();
+        });
+      } else {
+        input = document.createElement("input");
+        input.type = "range";
+        input.min = String(paramDef.min);
+        input.max = String(paramDef.max);
+        input.step = String(paramDef.step);
+        input.value = String(effect.params[paramDef.name]);
+        input.addEventListener("input", () => {
+          setEffectParam(effect, paramDef.name, Number(input.value));
+        });
+      }
+      inputs.set(paramDef.name, input);
       fieldLabel.appendChild(input);
       row.appendChild(fieldLabel);
     }
+    refreshSyncedInputs();
 
     container.appendChild(row);
   }

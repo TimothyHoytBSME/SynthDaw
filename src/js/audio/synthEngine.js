@@ -9,6 +9,7 @@ export function createSynthEngine(audioContext, defaultDestination) {
   const scheduledVoices = new Set();
   let voiceOrder = 0;
   let bendCents = 0;
+  let tempo = 120;
 
   function stealOldestVoice() {
     let oldestNote = null;
@@ -33,7 +34,7 @@ export function createSynthEngine(audioContext, defaultDestination) {
       } else if (activeVoices.size >= MAX_VOICES) {
         stealOldestVoice();
       }
-      const voice = createVoice(audioContext, destination, note, velocity, patch, bendCents);
+      const voice = createVoice(audioContext, destination, note, velocity, patch, { bendCents, tempo });
       voice.start();
       activeVoices.set(note, { voice, order: voiceOrder++ });
     },
@@ -44,6 +45,10 @@ export function createSynthEngine(audioContext, defaultDestination) {
       }
       record.voice.stop(false);
       activeVoices.delete(note);
+    },
+    // For tempo-synced LFOs; applies from the next note.
+    setTempo(bpm) {
+      tempo = bpm;
     },
     // Applies to live voices only (sounding and future): pitch bend is a performance gesture,
     // not something sequenced playback should inherit.
@@ -57,7 +62,7 @@ export function createSynthEngine(audioContext, defaultDestination) {
     // future AudioContext times, entirely separate from the live activeVoices/stealing pool
     // above (a sequenced note is never live-retriggered or stolen mid-playback).
     scheduleNote(note, velocity, startTime, durationSeconds, patch, destination = defaultDestination) {
-      const voice = createVoice(audioContext, destination, note, velocity, patch);
+      const voice = createVoice(audioContext, destination, note, velocity, patch, { tempo });
       voice.start(startTime);
       voice.stop(false, startTime + durationSeconds);
       scheduledVoices.add(voice);

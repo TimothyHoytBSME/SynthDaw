@@ -275,3 +275,17 @@ Chronological history of notable actions taken by any agent in this project. App
 - What: Read every source file and ran the app headless in Chromium (page load, demo loading, transport clock, undo, phone-width layout, offline renders of all three demos; nothing was played). Wrote the findings up as "Third review (2026-10-15)" in `PLAN.md`, ranked. Highlights: Export WAV schedules every note up front, so render time grows with note count (Neon Riptide took 12.5 min headless; scheduling a bar ahead via `OfflineAudioContext.suspend()` was 2.7× faster on Neon Pulse); the metronome click runs through the master effects, so the demos' master compressor ducks the music on each click; undo/redo reset the timeline scroll; Delete with the piano roll open deletes the block; no sustain pedal; a demo load overwrites the only autosave slot. Simple wins and features are listed in the review.
 - Why: The user asked for a review after pushing the repo to GitHub, looking for glaring issues, simple wins, UI improvements, bug fixes, optimizations and features.
 - Commit(s): see the commit that adds the review
+
+### 2026-10-15 — Worked the third review's list (bugs and simple wins)
+- Agent/Model: Claude Fable 5.1
+- What (one commit each, all verified headless in Chromium with silent offline renders; nothing was listened to):
+  - **Export WAV** schedules notes a bar at a time from `OfflineAudioContext.suspend()` callbacks instead of all up front, renders at the engine's 48 kHz, and shows a percentage. Neon Pulse: 24.0 s → 8.5 s, output identical to within 1.5e-5 (seeded-random A/B against the old scheduling).
+  - **Metronome** plays through a new mixer `clickInput` (master volume, no master effects); it used to go through the demos' master compressor.
+  - **Scroll** of the timeline (both axes), mixer strips and page survives undo/redo/import/demo load. `replaceProjectContents` emits `project:replaced`, which settles the undo debounce so a demo load and an edit right after it are two steps (they merged before).
+  - **Delete/Backspace** no longer deletes the block while its piano roll is open (`selection.js` tracks the edited block). New shortcuts: Home (seek to start), Ctrl/Cmd+S (Export JSON). Ctrl+D only claimed with a block selected.
+  - **Sustain pedal** (CC 64) handled in `midiInput.js`, per channel; live polyphony 8 → 16.
+  - **Mixer gains** (volume, pan, mute/solo, master) ramp over 10 ms; the first value is still set directly, so offline renders are unchanged.
+  - **Loop-this-block** button; transport-bar fields follow the model; **piano-roll playhead**; **track colours** (`track.color`, swatch in the header, tints blocks/headers/strips; demos get them by index via `normalizeProject`, sound unchanged); **Mute/Solo in the track headers**, kept in step with the mixer; header width 120 → 170 px.
+  - Idle rAF frames do no DOM work; the sequencer binary-searches a sorted note cache; the header shrinks below 600 px (334 → 167 px on a 375 px phone).
+- Not done: review issue 6 (a demo load overwrites the only autosave slot), canvas block previews, and the feature list.
+- Commit(s): 2f2defe, 7d1a84a, 73e17f1, c879b4e, 100e278, ae4e15a, bd656a6, e30dba5 (and the click routing commit between the first two)

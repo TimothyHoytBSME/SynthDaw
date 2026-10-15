@@ -2,12 +2,13 @@ import { bus } from "./eventBus.js";
 import { createTicker } from "./ticker.js";
 
 const LOOKAHEAD_MS = 25;
-// How far ahead of real time audio is scheduled. Generous on purpose: a page that is behind
-// another tab, or an unfocused window on a busy machine, can have its main thread stalled for
-// hundreds of milliseconds, and anything not yet scheduled by then plays late or not at all.
-// The cost is only that tempo changes and loop edits reach the audio this much later.
-const SCHEDULE_AHEAD_SECONDS = 0.5;
-const HIDDEN_SCHEDULE_AHEAD_SECONDS = 2;
+// How far ahead of real time audio is scheduled. Enough to ride out a stalled main thread
+// (an unfocused or backgrounded renderer), but not more: every voice scheduled early is a
+// live set of nodes on the audio thread for that much longer, which costs CPU exactly where
+// a struggling machine can least afford it. (0.5 s was tried on 2026-10-15 and made the
+// user's glitches worse.)
+const SCHEDULE_AHEAD_SECONDS = 0.2;
+const HIDDEN_SCHEDULE_AHEAD_SECONDS = 1;
 
 function scheduleAheadSeconds() {
   return typeof document !== "undefined" && document.hidden ? HIDDEN_SCHEDULE_AHEAD_SECONDS : SCHEDULE_AHEAD_SECONDS;

@@ -61,7 +61,8 @@ body {
   min-height: 40px;
 }
 
-.project-controls .demo-select {
+.project-controls .demo-select,
+.project-controls .audio-select {
   background: #2a2d35;
   color: var(--fg);
   border: 1px solid #3a3d46;
@@ -1072,7 +1073,8 @@ main {
   }
 
   .project-controls button,
-  .project-controls .demo-select {
+  .project-controls .demo-select,
+.project-controls .audio-select {
     padding: 0.4rem 0.5rem;
     font-size: 0.7rem;
     min-height: 36px;

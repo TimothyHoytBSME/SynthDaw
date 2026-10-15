@@ -8,6 +8,7 @@ import {
 } from "../core/project.js";
 import { loadProject, BACKUP_KEY } from "../core/persistence.js";
 import { renderProjectToBuffer } from "../audio/exportRender.js";
+import { getLatencyMode, setLatencyMode } from "../audio/audioEngine.js";
 import { audioBufferToWavBlob } from "../audio/wavEncoder.js";
 import { undo, redo, canUndo, canRedo } from "../core/history.js";
 import { DEMOS } from "../demo/demos.js";
@@ -150,6 +151,21 @@ export function renderProjectControls(container, project, onReplaced) {
   importButton.textContent = "Import JSON";
   importButton.addEventListener("click", () => importInput.click());
 
+  // Output buffer: "Stable" trades live-note latency for tolerance of CPU spikes. The context
+  // is created with the hint, so changing it reloads the page (the project is autosaved).
+  const latencySelect = document.createElement("select");
+  latencySelect.className = "audio-select";
+  latencySelect.title = "Audio buffer: Low latency for playing live; Stable (bigger buffer) if playback glitches";
+  latencySelect.setAttribute("aria-label", "Audio buffer");
+  latencySelect.append(new Option("Audio: Low latency", "interactive"), new Option("Audio: Stable (more buffer)", "playback"));
+  latencySelect.value = getLatencyMode();
+  latencySelect.addEventListener("change", () => {
+    setLatencyMode(latencySelect.value);
+    if (window.confirm("The audio buffer setting takes effect after a reload. Reload now? (Your project is autosaved.)")) {
+      window.location.reload();
+    }
+  });
+
   const status = document.createElement("span");
   status.className = "project-status";
   status.textContent = "";
@@ -170,6 +186,7 @@ export function renderProjectControls(container, project, onReplaced) {
     importButton,
     importInput,
     recoverButton,
+    latencySelect,
     status,
   );
 }

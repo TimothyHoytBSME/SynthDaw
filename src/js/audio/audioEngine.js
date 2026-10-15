@@ -16,6 +16,30 @@ const UNLOCK_EVENTS = ["mousedown", "click", "keydown", "touchend"];
 // much: measured, the demo song's effect chains alone (no notes) needed 109% of real time at
 // 192 kHz, so the audio thread overloaded and produced total silence. At 48 kHz: 14%.
 export const ENGINE_SAMPLE_RATE = 48000;
+// Output buffer size ("latencyHint"). "interactive" (Chrome's default) keeps live playing
+// responsive; "playback" asks for a larger buffer, which rides out CPU spikes (JIT warm-up,
+// GC, a busy machine, Chrome resampling to a 192 kHz device) at the cost of more latency on
+// live notes. The choice is kept in localStorage and read when the context is created.
+const LATENCY_STORAGE_KEY = "synthdaw.audioLatency";
+export const LATENCY_MODES = ["interactive", "playback"];
+
+export function getLatencyMode() {
+  try {
+    const stored = localStorage.getItem(LATENCY_STORAGE_KEY);
+    return LATENCY_MODES.includes(stored) ? stored : "interactive";
+  } catch {
+    return "interactive";
+  }
+}
+
+// Takes effect when the AudioContext is next created (the page reloads for that).
+export function setLatencyMode(mode) {
+  try {
+    localStorage.setItem(LATENCY_STORAGE_KEY, mode);
+  } catch {
+    // Storage unavailable: the default stays.
+  }
+}
 
 let audioContext = null;
 let masterGain = null;
@@ -49,7 +73,10 @@ function queueMixerSync() {
 // the one place that resumes, from real clicks/keypresses.
 function ensureContext() {
   if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: ENGINE_SAMPLE_RATE });
+    audioContext = new (window.AudioContext || window.webkitAudioContext)({
+      sampleRate: ENGINE_SAMPLE_RATE,
+      latencyHint: getLatencyMode(),
+    });
     masterGain = audioContext.createGain();
     synthEngine = createSynthEngine(audioContext, masterGain);
     mixer = createMixer(audioContext, masterGain); // routes masterGain -> master effect chain -> destination

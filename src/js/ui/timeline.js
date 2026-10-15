@@ -2,6 +2,9 @@ import {
   addTrack,
   removeTrack,
   renameTrack,
+  setTrackColor,
+  setTrackMuted,
+  setTrackSoloed,
   addBlock,
   moveBlock,
   resizeBlock,
@@ -26,7 +29,7 @@ const COARSE_SNAP_PIXELS_PER_BEAT = 20;
 const MIN_BEAT_TICK_SPACING_PX = 10;
 const MIN_NOTE_PREVIEW_RANGE = 12;
 // Must match the header width baked into the `.timeline-track-header` CSS rule.
-const TRACK_HEADER_WIDTH = 120;
+const TRACK_HEADER_WIDTH = 170;
 // Follow mode turns the page when the playhead gets this close to the right edge, and puts
 // it this far (as a fraction of the visible lane width) from the left edge.
 const FOLLOW_EDGE_PX = 24;
@@ -401,10 +404,42 @@ export function renderTimeline(container, project) {
     header.title = "Click to select (live input plays this track) · double-click the name to rename";
     header.addEventListener("click", () => selectTrack(track.id));
 
+    const colorInput = document.createElement("input");
+    colorInput.type = "color";
+    colorInput.className = "timeline-track-color";
+    colorInput.value = track.color;
+    colorInput.title = "Track colour";
+    colorInput.setAttribute("aria-label", "Track colour");
+    colorInput.addEventListener("click", (event) => event.stopPropagation());
+    colorInput.addEventListener("input", () => {
+      setTrackColor(track, colorInput.value);
+      row.style.setProperty("--track-color", track.color);
+    });
+    colorInput.addEventListener("change", () => bus.emit("project:tracks-changed", {}));
+
     const nameSpan = document.createElement("span");
     nameSpan.className = "timeline-track-name";
     nameSpan.textContent = track.name;
+    nameSpan.title = `${track.name} — double-click to rename`;
     nameSpan.addEventListener("dblclick", () => startRename(nameSpan, track));
+
+    const toggle = (label, title, isOn, setOn) => {
+      const toggleButton = document.createElement("button");
+      toggleButton.type = "button";
+      toggleButton.className = "timeline-track-toggle";
+      toggleButton.textContent = label;
+      toggleButton.title = title;
+      toggleButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        setOn(!isOn());
+      });
+      toggleButton.refresh = () => toggleButton.classList.toggle("timeline-track-toggle--active", isOn());
+      toggleButton.refresh();
+      return toggleButton;
+    };
+    const muteButton = toggle("M", "Mute", () => track.muted, (on) => setTrackMuted(track, on));
+    const soloButton = toggle("S", "Solo", () => track.soloed, (on) => setTrackSoloed(track, on));
+    row.toggleButtons = [muteButton, soloButton];
 
     const removeTrackButton = document.createElement("button");
     removeTrackButton.type = "button";
@@ -420,7 +455,8 @@ export function renderTimeline(container, project) {
       renderTracks();
       bus.emit("project:tracks-changed", {});
     });
-    header.append(nameSpan, removeTrackButton);
+    header.append(colorInput, nameSpan, muteButton, soloButton, removeTrackButton);
+    row.style.setProperty("--track-color", track.color);
 
     const lane = document.createElement("div");
     lane.className = "timeline-lane";
@@ -449,6 +485,13 @@ export function renderTimeline(container, project) {
 
     row.append(header, lane);
     return row;
+  }
+
+  // Mute/solo can change from the mixer (or undo): the header buttons follow the model.
+  function refreshTrackToggles() {
+    for (const row of tracksEl.children) {
+      row.toggleButtons?.forEach((toggleButton) => toggleButton.refresh());
+    }
   }
 
   function renderTracks() {
@@ -502,7 +545,10 @@ export function renderTimeline(container, project) {
       }
     }),
     bus.on("transport:seek", syncPlayhead),
-    bus.on("project:changed", renderLoopRegion),
+    bus.on("project:changed", () => {
+      renderLoopRegion();
+      refreshTrackToggles();
+    }),
   ];
 
   renderAll();

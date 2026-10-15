@@ -19,6 +19,12 @@ export const HIGHEST_NOTE = 127;
 export const SEMITONES_PER_OCTAVE = 12;
 export const MIN_TEMPO = 20;
 export const MAX_TEMPO = 300;
+// New tracks cycle through these; blocks, headers and mixer strips are tinted with them.
+export const TRACK_COLORS = ["#5b8cff", "#ff7a5b", "#3fbf6f", "#d8c24a", "#c678dd", "#4fc3d9", "#ff6fae", "#f0a048"];
+
+function defaultTrackColor(index) {
+  return TRACK_COLORS[index % TRACK_COLORS.length];
+}
 
 export function createProject() {
   return {
@@ -60,6 +66,7 @@ export function normalizeProject(project) {
   normalizeEffects(project.master);
   project.tracks.forEach((track, index) => {
     Object.assign(track, { ...createTrackDefaults(), name: `Track ${index + 1}`, ...track });
+    track.color ??= defaultTrackColor(index);
     track.patch = normalizePatch(track.patch);
     normalizeEffects(track);
     for (const block of track.blocks) {
@@ -76,6 +83,7 @@ export function addTrack(project, { name } = {}) {
   const track = {
     id: nextId("track"),
     name: name ?? `Track ${project.tracks.length + 1}`,
+    color: defaultTrackColor(project.tracks.length),
     ...createTrackDefaults(),
   };
   project.tracks.push(track);
@@ -88,6 +96,10 @@ export function renameTrack(track, name) {
   if (trimmed) {
     setIfChanged(track, "name", trimmed);
   }
+}
+
+export function setTrackColor(track, color) {
+  setIfChanged(track, "color", color);
 }
 
 export function setTrackPatch(track, patch) {

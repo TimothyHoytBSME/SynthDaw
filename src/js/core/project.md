@@ -3,7 +3,7 @@
 The project data model and **the only place project data is mutated**. Shape:
 
 - `Project { tempo, timeSignature: { beatsPerBar }, tracks, master: { volume, effects }, loop: { enabled, startBeat, endBeat } }`
-- `Track { id, name, blocks, volume, pan, muted, soloed, effects, patch }`, where `patch` is a [patch.js](../audio/patch.md) object (per-track instrument)
+- `Track { id, name, color, blocks, volume, pan, muted, soloed, effects, patch }`, where `patch` is a [patch.js](../audio/patch.md) object (per-track instrument) and `color` is a CSS hex colour (assigned from `TRACK_COLORS` by track index on creation and by `normalizeProject` for older data; `setTrackColor` changes it)
 - `Block { id, startBeat, lengthBeats, notes }`
 - `Note { id, note (MIDI 0–127), startBeat (relative to its block), lengthBeats, velocity (1–127) }`
 - `Effect { id, type, params, bypassed }`

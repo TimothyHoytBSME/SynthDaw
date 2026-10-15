@@ -165,7 +165,7 @@ main {
   height: 24px;
   background: #1b1e24;
   border-bottom: 1px solid #2a2d35;
-  margin-left: 120px;
+  margin-left: 170px;
 }
 
 .timeline-ruler {
@@ -202,8 +202,8 @@ main {
   left: 0;
   z-index: 4;
   cursor: pointer;
-  width: 120px;
-  flex: 0 0 120px;
+  width: 170px;
+  flex: 0 0 170px;
   padding: 0.4rem 0.5rem;
   font-size: 0.8rem;
   background: #1b1e24;
@@ -214,9 +214,58 @@ main {
   gap: 0.25rem;
 }
 
+.timeline-track-header {
+  box-shadow: inset 3px 0 0 var(--track-color, var(--accent));
+}
+
 .timeline-track-header--selected {
   background: #262b36;
-  box-shadow: inset 3px 0 0 var(--accent);
+  box-shadow: inset 3px 0 0 var(--track-color, var(--accent)), inset 0 0 0 1px #4a5160;
+}
+
+.timeline-track-color {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  cursor: pointer;
+}
+
+.timeline-track-color::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.timeline-track-color::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+
+.timeline-track-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.timeline-track-toggle {
+  flex: 0 0 auto;
+  min-width: 22px;
+  min-height: 24px;
+  padding: 0 0.2rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: #2a2d35;
+  color: var(--muted);
+  border: 1px solid #3a3d46;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.timeline-track-toggle--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
 }
 
 .timeline-track-rename {
@@ -353,7 +402,7 @@ main {
   text-align: center;
 }
 
-.timeline-track-header span {
+.timeline-track-header .timeline-track-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -388,8 +437,8 @@ main {
   position: absolute;
   top: 4px;
   bottom: 4px;
-  background: #34569e;
-  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--track-color, var(--accent)) 45%, #1b1e24);
+  border: 1px solid var(--track-color, var(--accent));
   border-radius: 4px;
   overflow: hidden;
   cursor: grab;
@@ -398,7 +447,7 @@ main {
 }
 
 .timeline-block--selected {
-  background: #4a70c4;
+  background: color-mix(in srgb, var(--track-color, var(--accent)) 65%, #1b1e24);
   border-color: #fff;
   box-shadow: 0 0 0 1px #fff;
   z-index: 1;
@@ -489,6 +538,10 @@ main {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.mixer-strip {
+  border-top: 3px solid var(--track-color, #2a2d35);
 }
 
 .mixer-strip--master {

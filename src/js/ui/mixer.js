@@ -164,22 +164,24 @@ function renderTrackStrip(track, selected) {
   const muteButton = document.createElement("button");
   muteButton.type = "button";
   muteButton.textContent = "Mute";
-  muteButton.className = `mixer-toggle${track.muted ? " mixer-toggle--active" : ""}`;
-  muteButton.addEventListener("click", () => {
-    setTrackMuted(track, !track.muted);
-    muteButton.classList.toggle("mixer-toggle--active", track.muted);
-  });
+  muteButton.className = "mixer-toggle";
+  muteButton.addEventListener("click", () => setTrackMuted(track, !track.muted));
   toggles.appendChild(muteButton);
 
   const soloButton = document.createElement("button");
   soloButton.type = "button";
   soloButton.textContent = "Solo";
-  soloButton.className = `mixer-toggle${track.soloed ? " mixer-toggle--active" : ""}`;
-  soloButton.addEventListener("click", () => {
-    setTrackSoloed(track, !track.soloed);
-    soloButton.classList.toggle("mixer-toggle--active", track.soloed);
-  });
+  soloButton.className = "mixer-toggle";
+  soloButton.addEventListener("click", () => setTrackSoloed(track, !track.soloed));
   toggles.appendChild(soloButton);
+
+  // Mute/solo can also change from the timeline's header buttons or undo.
+  strip.refreshToggles = () => {
+    muteButton.classList.toggle("mixer-toggle--active", track.muted);
+    soloButton.classList.toggle("mixer-toggle--active", track.soloed);
+    strip.style.setProperty("--track-color", track.color);
+  };
+  strip.refreshToggles();
 
   strip.appendChild(toggles);
 
@@ -252,9 +254,14 @@ export function renderMixer(container, project) {
     });
   }
 
+  function refreshToggles() {
+    container.querySelectorAll(".mixer-strip").forEach((strip) => strip.refreshToggles?.());
+  }
+
   const unsubscribers = [
     bus.on("project:tracks-changed", render),
     bus.on("selection:changed", highlightSelected),
+    bus.on("project:changed", refreshToggles),
   ];
   render();
   return () => {

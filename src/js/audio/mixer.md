@@ -1,6 +1,6 @@
 # mixer.js
 
-Owns the per-track audio buses and the master [effect chain](./effectChain.md). Signal flow per track: `gainNode` (volume, mute/solo) -> track `effectChain` -> `StereoPannerNode` -> shared `masterGain` ([audioEngine.js](./audioEngine.md)) -> master chain -> `masterOutput` (a unity gain, exposed for metering) -> `destination`.
+Owns the per-track audio buses and the master [effect chain](./effectChain.md). Signal flow per track: `gainNode` (volume, mute/solo) -> track `effectChain` -> `StereoPannerNode` -> shared `masterGain` ([audioEngine.js](./audioEngine.md)) -> master chain -> `masterOutput` (a unity gain, exposed for metering) -> `destination`. A separate `clickInput` gain feeds `masterOutput` directly, at the master volume: the metronome plays through it, so the master effects (the demos all have a master compressor, which used to duck the music on every click) never touch it.
 
 **`syncProject(project)` is the only way the audio graph gets updated.** It reconciles everything against the project's plain data:
 - It disposes buses for tracks that no longer exist and creates them for new ones (`getTrackBus` is lazy).

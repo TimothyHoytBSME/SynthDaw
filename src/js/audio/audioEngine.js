@@ -158,6 +158,12 @@ export function getMasterGain() {
   return masterGain;
 }
 
+// Where the metronome plays: post master effects, at the master volume (see mixer.js).
+export function getClickDestination() {
+  ensureContext();
+  return mixer.clickInput;
+}
+
 export function scheduleNote(note, velocity, startTime, durationSeconds, patch, destinationNode) {
   ensureContext();
   synthEngine.scheduleNote(note, velocity, startTime, durationSeconds, patch, destinationNode);

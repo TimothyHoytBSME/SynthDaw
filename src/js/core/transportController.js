@@ -4,7 +4,7 @@ import { playableNotes } from "./project.js";
 import { playClick } from "../audio/click.js";
 import {
   ensureAudioContext,
-  getMasterGain,
+  getClickDestination,
   getMixer,
   scheduleNote,
   cancelScheduledNotes,
@@ -26,7 +26,7 @@ function scheduleMetronome(windowStart, windowEnd, beatToContextTime) {
   const firstBeat = Math.ceil(windowStart - 1e-9);
   for (let beat = firstBeat; beat < windowEnd; beat += 1) {
     const accented = Math.round(beat) % beatsPerBar === 0;
-    playClick(ensureAudioContext(), getMasterGain(), beatToContextTime(beat), accented);
+    playClick(ensureAudioContext(), getClickDestination(), beatToContextTime(beat), accented);
   }
 }
 

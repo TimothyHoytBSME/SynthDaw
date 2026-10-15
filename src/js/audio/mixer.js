@@ -13,6 +13,10 @@ export function createMixer(audioContext, masterGain) {
   const masterChain = createEffectChain(audioContext, masterOutput);
   masterGain.disconnect();
   masterGain.connect(masterChain.input);
+  // The metronome's way in: it follows the master volume but skips the master effects, so a
+  // master compressor doesn't duck the music on every click (and a reverb doesn't smear it).
+  const clickInput = audioContext.createGain();
+  clickInput.connect(masterOutput);
 
   const trackBuses = new Map();
 
@@ -38,6 +42,7 @@ export function createMixer(audioContext, masterGain) {
 
   return {
     masterOutput,
+    clickInput,
     getTrackBus,
     // Reconciles the whole audio graph against the project's plain data: disposes buses for
     // tracks that no longer exist, creates buses for new ones, and applies volume/pan/mute/solo
@@ -63,6 +68,7 @@ export function createMixer(audioContext, masterGain) {
       }
 
       setParamIfChanged(masterGain.gain, project.master.volume);
+      setParamIfChanged(clickInput.gain, project.master.volume);
       masterChain.sync(project.master.effects, project.tempo);
     },
   };

@@ -288,4 +288,4 @@ Chronological history of notable actions taken by any agent in this project. App
   - **Loop-this-block** button; transport-bar fields follow the model; **piano-roll playhead**; **track colours** (`track.color`, swatch in the header, tints blocks/headers/strips; demos get them by index via `normalizeProject`, sound unchanged); **Mute/Solo in the track headers**, kept in step with the mixer; header width 120 → 170 px.
   - Idle rAF frames do no DOM work; the sequencer binary-searches a sorted note cache; the header shrinks below 600 px (334 → 167 px on a 375 px phone).
 - Not done: review issue 6 (a demo load overwrites the only autosave slot), canvas block previews, and the feature list.
-- Commit(s): 2f2defe, 7d1a84a, 73e17f1, c879b4e, 100e278, ae4e15a, bd656a6, e30dba5 (and the click routing commit between the first two)
+- Commit(s): 2f2defe, c74a966, 7d1a84a, 73e17f1, c879b4e, 100e278, ae4e15a, bd656a6, e30dba5

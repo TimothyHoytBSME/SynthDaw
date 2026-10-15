@@ -4,13 +4,7 @@ import { getSelectedTrack, getSelection } from "../core/selection.js";
 import { OSC_TYPES, FILTER_TYPES, LFO_TARGETS } from "../audio/patch.js";
 import { PRESET_NAMES, createPresetPatch } from "../audio/presets.js";
 import { SYNC_DIVISIONS } from "../audio/tempoSync.js";
-import {
-  startLearning,
-  cancelLearning,
-  clearMapping,
-  getLearnTarget,
-  getMappedController,
-} from "../midi/midiMap.js";
+import { createLearnButton } from "./midiLearnButton.js";
 
 const LOG_SLIDER_STEPS = 1000;
 const MIDI_TARGET_PREFIX = "patch:";
@@ -160,38 +154,6 @@ function createRangeField(field, value, onChange) {
   return { element: wrapper, setValue: show };
 }
 
-// Small per-slider button for MIDI learn: click, then move a controller knob to map it.
-// Clicking again while waiting cancels and clears any existing mapping for that slider.
-function createLearnButton(path) {
-  const target = `${MIDI_TARGET_PREFIX}${path}`;
-  const learnButton = document.createElement("button");
-  learnButton.type = "button";
-  learnButton.className = "patch-learn";
-
-  function refresh() {
-    const learning = getLearnTarget() === target;
-    const controller = getMappedController(target);
-    learnButton.classList.toggle("patch-learn--learning", learning);
-    learnButton.classList.toggle("patch-learn--mapped", controller !== null);
-    learnButton.textContent = learning ? "…" : controller !== null ? `CC${controller}` : "MIDI";
-    learnButton.title = learning
-      ? "Move a knob/slider on your MIDI controller to map it (click again to cancel and unmap)"
-      : "MIDI learn: click, then move a controller knob/slider";
-  }
-
-  learnButton.addEventListener("click", (event) => {
-    event.preventDefault();
-    if (getLearnTarget() === target) {
-      cancelLearning();
-      clearMapping(target);
-    } else {
-      startLearning(target);
-    }
-  });
-  refresh();
-  return { element: learnButton, refresh };
-}
-
 export function renderPatchEditor(container, project) {
   // path -> { field, setValue }, so external changes (MIDI CC) can update the matching control.
   const controls = new Map();
@@ -269,7 +231,7 @@ export function renderPatchEditor(container, project) {
             : createRangeField(field, value, onChange);
         controls.set(field.path, { field, setValue: control.setValue });
         if (field.kind !== "select") {
-          const learnButton = createLearnButton(field.path);
+          const learnButton = createLearnButton(`${MIDI_TARGET_PREFIX}${field.path}`);
           learnButtons.push(learnButton);
           control.element.appendChild(learnButton.element);
         }

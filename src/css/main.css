@@ -392,6 +392,22 @@ main {
   box-shadow: 0 0 6px #ff3b30;
 }
 
+.transport-midi-learn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.transport-midi-learn .patch-learn {
+  min-height: 28px;
+}
+
+.mixer-field .patch-learn {
+  flex: 0 0 auto;
+}
+
 .transport-audio-status {
   font-size: 0.75rem;
   color: #ffb35b;

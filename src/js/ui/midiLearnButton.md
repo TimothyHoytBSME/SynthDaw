@@ -1,0 +1,3 @@
+# midiLearnButton.js
+
+`createLearnButton(target)` returns `{ element, refresh }`: the small `MIDI` / `…` / `CC21` button that puts [midiMap.js](../midi/midiMap.md) into learn mode for `target` (click again while waiting to cancel and unmap). It was the patch editor's private helper until 2026-10-15; now the [patch editor](./patchEditor.md) (`patch:<path>`), the [mixer](./mixer.md) (`mixer:track:<index>:volume|pan`, `mixer:master:volume`) and the [transport bar](./transportBar.md) (`transport:play|stop|record`) share it. The owner keeps the buttons it made and calls `refresh()` on `midimap:changed`. Styled by `.patch-learn` in `main.css`.

@@ -21,6 +21,7 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/audio/patch.md](../src/js/audio/patch.md) | Companion doc for `src/js/audio/patch.js`, the JSON synth-patch data model. |
 | [src/js/audio/pitch.md](../src/js/audio/pitch.md) | Companion doc for `src/js/audio/pitch.js`, MIDI-note-to-frequency conversion. |
 | [src/js/ui/computerKeyboard.md](../src/js/ui/computerKeyboard.md) | Companion doc for `src/js/ui/computerKeyboard.js`, computer-keyboard note input (Z/X octave). |
+| [src/js/ui/midiLearnButton.md](../src/js/ui/midiLearnButton.md) | Companion doc for `src/js/ui/midiLearnButton.js`, the shared MIDI-learn button used by the patch editor, mixer and transport. |
 | [src/js/ui/patchEditor.md](../src/js/ui/patchEditor.md) | Companion doc for `src/js/ui/patchEditor.js`, the live patch-parameter editing UI. |
 | [src/js/midi/midiInput.md](../src/js/midi/midiInput.md) | Companion doc for `src/js/midi/midiInput.js`, the Web MIDI device/message layer. |
 | [src/js/ui/midiStatus.md](../src/js/ui/midiStatus.md) | Companion doc for `src/js/ui/midiStatus.js`, the MIDI connection-status readout. |

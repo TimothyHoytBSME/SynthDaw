@@ -3,6 +3,7 @@ import { getTransport, setMetronomeEnabled, isMetronomeEnabled } from "../core/t
 import { bus } from "../core/eventBus.js";
 import { getAudioState } from "../audio/audioEngine.js";
 import { createLevelMeter } from "./levelMeter.js";
+import { createLearnButton } from "./midiLearnButton.js";
 import {
   startRecording,
   stopRecording,
@@ -169,6 +170,27 @@ export function createTransportBar(project, { onLayoutChange, onTransportAction 
     getTransport().stop();
     onTransportAction();
   });
+
+  // Controller buttons: a mapped CC fires its action on the press (value in the upper half).
+  const midiActions = {
+    "transport:play": () => (getTransport().isRunning() ? getTransport().pause() : getTransport().play()),
+    "transport:stop": () => getTransport().stop(),
+    "transport:record": () => (isRecording() ? stopRecording() : startRecording()),
+  };
+  const learnButtons = Object.keys(midiActions).map((target) => createLearnButton(target));
+  const midiLearnGroup = document.createElement("span");
+  midiLearnGroup.className = "transport-midi-learn";
+  midiLearnGroup.title = "MIDI learn for controller buttons: play/pause, stop, record";
+  midiLearnGroup.append("MIDI:", ...learnButtons.map((learnButton) => learnButton.element));
+  unsubscribers.push(
+    bus.on("midimap:changed", () => learnButtons.forEach((learnButton) => learnButton.refresh())),
+    bus.on("midimap:control", ({ target, normalized }) => {
+      if (midiActions[target] && normalized >= 0.5) {
+        midiActions[target]();
+        onTransportAction();
+      }
+    }),
+  );
   tempo.input.addEventListener("change", () => {
     setTempo(project, Number(tempo.input.value) || project.tempo);
     tempo.input.value = String(project.tempo);
@@ -201,6 +223,7 @@ export function createTransportBar(project, { onLayoutChange, onTransportAction 
     stopButton,
     recordButton,
     quantize.label,
+    midiLearnGroup,
     position,
     levelMeter.element,
     tempo.label,

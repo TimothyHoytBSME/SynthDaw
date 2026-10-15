@@ -1,6 +1,7 @@
 import { bus } from "../core/eventBus.js";
 import { getSelectedTrack, selectTrack } from "../core/selection.js";
 import { EFFECT_TYPES, defaultParamsFor } from "../audio/effectTypes.js";
+import { createLearnButton } from "./midiLearnButton.js";
 import {
   setTrackVolume,
   setTrackPan,
@@ -116,7 +117,38 @@ function renderEffectsSection(container, effectsOwner) {
   }
 }
 
-function renderTrackStrip(track, selected) {
+// MIDI targets are by track position (`mixer:track:0:volume`), like a hardware mixer's faders,
+// so the same knobs work on any project.
+const TRACK_VOLUME_RANGE = { min: 0, max: 1.5 };
+const PAN_RANGE = { min: -1, max: 1 };
+const MASTER_VOLUME_RANGE = { min: 0, max: 1 };
+
+function mixerTarget(index, param) {
+  return index === "master" ? `mixer:master:${param}` : `mixer:track:${index}:${param}`;
+}
+
+// Slider + learn button in one labelled field. `register(target, { input, range, apply })`
+// lets the mixer drive it from a mapped controller.
+function rangeField(labelText, { min, max, step, value, target, onInput, register, learnButtons }) {
+  const label = document.createElement("label");
+  label.className = "mixer-field";
+  label.textContent = labelText;
+  const input = document.createElement("input");
+  input.type = "range";
+  input.min = String(min);
+  input.max = String(max);
+  input.step = String(step);
+  input.value = String(value);
+  input.addEventListener("input", () => onInput(Number(input.value)));
+  label.appendChild(input);
+  const learnButton = createLearnButton(target);
+  learnButtons.push(learnButton);
+  label.appendChild(learnButton.element);
+  register(target, { input, range: { min, max }, apply: onInput });
+  return label;
+}
+
+function renderTrackStrip(track, index, selected, { register, learnButtons }) {
   const strip = document.createElement("div");
   strip.className = `mixer-strip${selected ? " mixer-strip--selected" : ""}`;
 
@@ -128,35 +160,28 @@ function renderTrackStrip(track, selected) {
   name.addEventListener("click", () => selectTrack(track.id));
   strip.appendChild(name);
 
-  const volumeLabel = document.createElement("label");
-  volumeLabel.className = "mixer-field";
-  volumeLabel.textContent = "Vol";
-  const volumeInput = document.createElement("input");
-  volumeInput.type = "range";
-  volumeInput.min = "0";
-  volumeInput.max = "1.5";
-  volumeInput.step = "0.01";
-  volumeInput.value = String(track.volume);
-  volumeInput.addEventListener("input", () => {
-    setTrackVolume(track, Number(volumeInput.value));
-  });
-  volumeLabel.appendChild(volumeInput);
-  strip.appendChild(volumeLabel);
-
-  const panLabel = document.createElement("label");
-  panLabel.className = "mixer-field";
-  panLabel.textContent = "Pan";
-  const panInput = document.createElement("input");
-  panInput.type = "range";
-  panInput.min = "-1";
-  panInput.max = "1";
-  panInput.step = "0.05";
-  panInput.value = String(track.pan);
-  panInput.addEventListener("input", () => {
-    setTrackPan(track, Number(panInput.value));
-  });
-  panLabel.appendChild(panInput);
-  strip.appendChild(panLabel);
+  strip.appendChild(
+    rangeField("Vol", {
+      ...TRACK_VOLUME_RANGE,
+      step: 0.01,
+      value: track.volume,
+      target: mixerTarget(index, "volume"),
+      onInput: (value) => setTrackVolume(track, value),
+      register,
+      learnButtons,
+    }),
+  );
+  strip.appendChild(
+    rangeField("Pan", {
+      ...PAN_RANGE,
+      step: 0.05,
+      value: track.pan,
+      target: mixerTarget(index, "pan"),
+      onInput: (value) => setTrackPan(track, value),
+      register,
+      learnButtons,
+    }),
+  );
 
   const toggles = document.createElement("div");
   toggles.className = "mixer-toggles";
@@ -193,7 +218,7 @@ function renderTrackStrip(track, selected) {
   return strip;
 }
 
-function renderMasterStrip(project) {
+function renderMasterStrip(project, { register, learnButtons }) {
   const strip = document.createElement("div");
   strip.className = "mixer-strip mixer-strip--master";
 
@@ -202,20 +227,17 @@ function renderMasterStrip(project) {
   name.textContent = "Master";
   strip.appendChild(name);
 
-  const volumeLabel = document.createElement("label");
-  volumeLabel.className = "mixer-field";
-  volumeLabel.textContent = "Vol";
-  const volumeInput = document.createElement("input");
-  volumeInput.type = "range";
-  volumeInput.min = "0";
-  volumeInput.max = "1";
-  volumeInput.step = "0.01";
-  volumeInput.value = String(project.master.volume);
-  volumeInput.addEventListener("input", () => {
-    setMasterVolume(project, Number(volumeInput.value));
-  });
-  volumeLabel.appendChild(volumeInput);
-  strip.appendChild(volumeLabel);
+  strip.appendChild(
+    rangeField("Vol", {
+      ...MASTER_VOLUME_RANGE,
+      step: 0.01,
+      value: project.master.volume,
+      target: mixerTarget("master", "volume"),
+      onInput: (value) => setMasterVolume(project, value),
+      register,
+      learnButtons,
+    }),
+  );
 
   const effectsContainer = document.createElement("div");
   effectsContainer.className = "mixer-effects";
@@ -230,19 +252,35 @@ let stripsScrollLeft = 0;
 
 export function renderMixer(container, project) {
   let strips = null;
+  // target -> { input, range, apply }, so a mapped controller moves the slider and the model.
+  const controls = new Map();
+  const learnButtons = [];
+  const register = (target, control) => controls.set(target, control);
 
   function render() {
     stripsScrollLeft = strips?.scrollLeft ?? stripsScrollLeft;
     container.innerHTML = "";
+    controls.clear();
+    learnButtons.length = 0;
     strips = document.createElement("div");
     strips.className = "mixer-strips";
     const selectedTrack = getSelectedTrack(project);
-    for (const track of project.tracks) {
-      strips.appendChild(renderTrackStrip(track, track === selectedTrack));
-    }
-    strips.appendChild(renderMasterStrip(project));
+    project.tracks.forEach((track, index) => {
+      strips.appendChild(renderTrackStrip(track, index, track === selectedTrack, { register, learnButtons }));
+    });
+    strips.appendChild(renderMasterStrip(project, { register, learnButtons }));
     container.appendChild(strips);
     strips.scrollLeft = stripsScrollLeft;
+  }
+
+  function handleMIDIControl({ target, normalized }) {
+    const control = controls.get(target);
+    if (!control) {
+      return;
+    }
+    const value = Number((control.range.min + normalized * (control.range.max - control.range.min)).toFixed(3));
+    control.apply(value);
+    control.input.value = String(value);
   }
 
   // Selection only changes a highlight class, so it's patched in place rather than re-rendering
@@ -262,6 +300,8 @@ export function renderMixer(container, project) {
     bus.on("project:tracks-changed", render),
     bus.on("selection:changed", highlightSelected),
     bus.on("project:changed", refreshToggles),
+    bus.on("midimap:control", handleMIDIControl),
+    bus.on("midimap:changed", () => learnButtons.forEach((learnButton) => learnButton.refresh())),
   ];
   render();
   return () => {

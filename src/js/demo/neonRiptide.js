@@ -11,9 +11,7 @@ const TEMPO = 112;
 const BEATS_PER_BAR = 4;
 const SONG_BARS = 64;
 const SECONDS_PER_BEAT = 60 / TEMPO;
-// Tempo-derived by hand, since there's no tempo sync yet.
-const EIGHTH_SECONDS = Number((SECONDS_PER_BEAT / 2).toFixed(3));
-const DOTTED_EIGHTH_SECONDS = Number((SECONDS_PER_BEAT * 0.75).toFixed(3));
+// Free-running fallbacks for the synced LFOs below (the sync division sets the real rate).
 const EIGHTH_NOTE_HZ = Number((2 / SECONDS_PER_BEAT).toFixed(3));
 const SIXTEENTH_NOTE_HZ = Number((4 / SECONDS_PER_BEAT).toFixed(3));
 
@@ -141,7 +139,7 @@ function arpTrack() {
   return track("Pluck Arp", createPresetPatch("Pluck"), {
     volume: 0.8,
     pan: 0.35,
-    effects: [effect("delay", { time: DOTTED_EIGHTH_SECONDS, feedback: 0.35, mix: 0.3 })],
+    effects: [effect("delay", { sync: "1/8.", feedback: 0.35, mix: 0.3 })],
     blocks: [
       barsBlock(BUILD, (chord, start, barIndex, barCount) => arpBar(ramp(0.6, 1, barIndex, barCount))(chord, start)),
       barsBlock(VERSE, arpBar(1)),
@@ -165,7 +163,7 @@ function leadTrack() {
     volume: 1,
     pan: -0.1,
     effects: [
-      effect("delay", { time: EIGHTH_SECONDS, feedback: 0.25, mix: 0.2 }),
+      effect("delay", { sync: "1/8", feedback: 0.25, mix: 0.2 }),
       effect("reverb", { size: 2, mix: 0.2 }),
     ],
     blocks: [
@@ -221,7 +219,7 @@ function bellsTrack() {
   return track("Glass Bells", patch, {
     volume: 0.78,
     pan: 0.25,
-    effects: [effect("delay", { time: DOTTED_EIGHTH_SECONDS, feedback: 0.55, mix: 0.4 })],
+    effects: [effect("delay", { sync: "1/8.", feedback: 0.55, mix: 0.4 })],
     blocks: [
       barsBlock([4, 4], bellBar(1)),
       barsBlock(BREAKDOWN, bellBar(1)),
@@ -249,7 +247,7 @@ function riserTrack() {
     block(firstBar * BEATS_PER_BAR, pitches.map((pitch) => note(pitch, 0, barCount * BEATS_PER_BAR - 0.5, vel)), barCount * BEATS_PER_BAR);
   return track("Riser", patch, {
     volume: 1,
-    effects: [effect("delay", { time: DOTTED_EIGHTH_SECONDS, feedback: 0.6, mix: 0.4 })],
+    effects: [effect("delay", { sync: "1/8.", feedback: 0.6, mix: 0.4 })],
     blocks: [swell([6, 2], [55, 67], 60), swell(RISE_1, [55, 67], 100), swell(RISE_2, [55, 62, 67], 110)],
   });
 }
@@ -445,7 +443,7 @@ function wobbleTrack() {
     ],
     filter: { type: "lowpass", cutoff: 400, resonance: 4, envAmount: 0 },
     ampEnvelope: { attack: 0.005, decay: 0.1, sustain: 1, release: 0.08 },
-    lfo: { rate: EIGHTH_NOTE_HZ, depth: 0.4, target: "filter" },
+    lfo: { rate: EIGHTH_NOTE_HZ, depth: 0.4, target: "filter", sync: "1/8" },
     gain: 0.7,
   });
   const wobbleBar = (withChops) => (chord, start, barIndex, barCount) =>
@@ -490,7 +488,7 @@ function growlTrack() {
     filter: { type: "bandpass", cutoff: 700, resonance: 2.5, envAmount: 1500 },
     ampEnvelope: { attack: 0.003, decay: 0.1, sustain: 0.9, release: 0.06 },
     filterEnvelope: { attack: 0.12, decay: 0.2, sustain: 0.3, release: 0.1 },
-    lfo: { rate: SIXTEENTH_NOTE_HZ, depth: 0.25, target: "filter" },
+    lfo: { rate: SIXTEENTH_NOTE_HZ, depth: 0.25, target: "filter", sync: "1/16" },
     gain: 0.8,
   });
   // Fills the gaps the wobble leaves, plus a descending run into the next section.
@@ -533,7 +531,7 @@ function laserTrack() {
   return track("Laser", patch, {
     volume: 0.72,
     pan: 0.4,
-    effects: [effect("delay", { time: EIGHTH_SECONDS, feedback: 0.4, mix: 0.35 })],
+    effects: [effect("delay", { sync: "1/8", feedback: 0.4, mix: 0.35 })],
     blocks: [barsBlock(DROP_1, laserBar), barsBlock(DROP_2, laserBar)],
   });
 }
@@ -559,7 +557,6 @@ export function createNeonRiptideProject() {
     growlTrack(),
     laserTrack(),
   ];
-  // Neon Tide's master chain: gentle enough that the drums don't pump the pad and lead.
   // Neon Tide's master chain: gentle enough that the drums don't pump the pad and lead.
   project.master = {
     volume: 0.42,

@@ -289,3 +289,10 @@ Chronological history of notable actions taken by any agent in this project. App
   - Idle rAF frames do no DOM work; the sequencer binary-searches a sorted note cache; the header shrinks below 600 px (334 → 167 px on a 375 px phone).
 - Not done: review issue 6 (a demo load overwrites the only autosave slot), canvas block previews, and the feature list.
 - Commit(s): 2f2defe, c74a966, 7d1a84a, 73e17f1, c879b4e, 100e278, ae4e15a, bd656a6, e30dba5
+
+### 2026-10-15 — Neon Vortex demo (psytrance)
+- Agent/Model: Claude Fable 5.1
+- What: The user asked for a psytrance or glitch-hop demo. Added `demo/neonVortex.js` (**Neon Vortex**, fourth in the picker): 32 bars at 145 BPM in E minor, 11 tracks, 1413 notes, about 53 s, looped. Rolling off-beat 16th bass (custom patch: saw + square, 170 Hz lowpass with an 80 ms filter envelope) under a shortened Kick preset; 16th hats with open hats on the "and"s; an acid riff (two saws, Q 9 lowpass, filter LFO synced to 2 bars, dotted-8th delay) in E minor pentatonic; a 1/16 trance gate; Zaps on E6; squelch blips (Q 12 lowpass snap + pitch drop, triplet delay); breakdown pads; noise risers; a rising snare roll into the drop. Structure: intro → groove → break → build → drop → outro.
+- Balance: measured by rendering each track solo offline at 48 kHz and taking the K-weighted momentary max (BS.1770 filters built from two biquads). First pass: bass 0.4 dB above the kick (cut to −2), acid and gate ~1–2 dB shy (raised), squelch 27 dB down because its bandpass rejected most of the square (redesigned as a resonant lowpass, then trimmed to −11). Final full mix: drop −12.3 vs Neon Pulse −12.6, peaks ≤ 0.71. Headless render load 0.56× real time with the chunked exporter.
+- **Not listened to:** the user needs to judge it.
+- Commit(s): see the commit adding neonVortex.js

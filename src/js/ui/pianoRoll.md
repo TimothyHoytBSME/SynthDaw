@@ -2,7 +2,7 @@
 
 Note editor for one [block](../core/project.md): `renderPianoRoll(container, block, { beatsPerBar })`. [timeline.js](./timeline.md) opens it in a panel below the arrangement.
 
-**Layout:** a toolbar (zoom 20–240 px/beat, snap 1 … 1/16 beat, a how-to hint), then a scroll area with a sticky key column (the full MIDI range, 0–127, as 20px rows) beside the grid, then a velocity lane whose horizontal scroll is kept in sync with the grid. Grid lines and black-key row shading are CSS gradients built in JS: bar, beat and row lines plus a 12-row stripe period aligned to `HIGHEST_NOTE`. There are no per-row elements.
+**Layout:** a toolbar (zoom 20–240 px/beat, snap 1 … 1/16 beat, a how-to hint), then a scroll area with a sticky key column (the full MIDI range, 0–127, as 20px rows) beside the grid, then a velocity lane whose horizontal scroll is kept in sync with the grid. Grid lines and black-key row shading are CSS gradients built in JS: bar, beat and row lines plus a 12-row stripe period aligned to `HIGHEST_NOTE`. There are no per-row elements. A playhead line sits in the grid: `setPianoRollPosition(beat)` (called from the timeline's animation loop while a roll is open) places it at the position relative to the block, hidden while the playhead is outside the block.
 
 **Interactions:**
 - Click empty grid: add a note at the snapped beat, using the last placed/resized length (clamped to the block end) and velocity 100. It's previewed audibly.

@@ -1,5 +1,13 @@
 import { bus } from "./eventBus.js";
-import { copyBlock, duplicateBlock, removeBlock, transposeBlock, SEMITONES_PER_OCTAVE } from "./project.js";
+import {
+  copyBlock,
+  duplicateBlock,
+  removeBlock,
+  transposeBlock,
+  setLoopRange,
+  setLoopEnabled,
+  SEMITONES_PER_OCTAVE,
+} from "./project.js";
 import { getSelectedTrack, getSelectedBlock, selectBlock, selectTrack } from "./selection.js";
 import { getPositionBeats } from "./transportController.js";
 
@@ -83,6 +91,16 @@ export function transposeSelectedBlock(project, semitones) {
       text: "Can't transpose that far: some notes would leave the MIDI range (C-1 to G9).",
     });
   }
+}
+
+// Sets the loop to the selected block's bounds and turns looping on.
+export function loopSelectedBlock(project) {
+  const block = getSelectedBlock(project);
+  if (!block) {
+    return;
+  }
+  setLoopRange(project, block.startBeat, block.startBeat + block.lengthBeats);
+  setLoopEnabled(project, true);
 }
 
 export function transposeSelectedBlockByOctaves(project, octaves) {

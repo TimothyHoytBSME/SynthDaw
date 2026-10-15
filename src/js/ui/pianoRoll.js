@@ -31,6 +31,22 @@ const ROW_COUNT = HIGHEST_NOTE - LOWEST_NOTE + 1;
 
 // Module-level so zoom/snap/new-note length persist across re-renders and between blocks.
 const settings = { pixelsPerBeat: 60, snap: 0.25, lastLength: 1 };
+// The open roll's playhead line and block, for `setPianoRollPosition` (driven by the timeline's
+// animation loop, which already knows the transport position).
+let activePlayhead = null;
+
+export function setPianoRollPosition(positionBeats) {
+  if (!activePlayhead || !activePlayhead.element.isConnected) {
+    return;
+  }
+  const { element, block } = activePlayhead;
+  const beatInBlock = positionBeats - block.startBeat;
+  const inside = beatInBlock >= 0 && beatInBlock < block.lengthBeats;
+  element.hidden = !inside;
+  if (inside) {
+    element.style.transform = `translateX(${beatInBlock * settings.pixelsPerBeat}px)`;
+  }
+}
 
 export function noteLabel(note) {
   return `${NOTE_NAMES[note % 12]}${Math.floor(note / 12) - 1}`;
@@ -168,6 +184,12 @@ export function renderPianoRoll(container, block, { beatsPerBar = 4 } = {}) {
     outside.title = "Past the block's end: kept, but not played";
     grid.appendChild(outside);
   }
+
+  const playhead = document.createElement("div");
+  playhead.className = "piano-roll-playhead";
+  playhead.hidden = true;
+  grid.appendChild(playhead);
+  activePlayhead = { element: playhead, block };
 
   main.append(keys, grid);
 

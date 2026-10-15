@@ -10,7 +10,7 @@ import {
 import { getTransport, getPositionBeats, isTransportRunning } from "../core/transportController.js";
 import { bus } from "../core/eventBus.js";
 import { getSelectedTrack, getSelection, selectTrack, selectBlock, findBlock, setEditingBlock } from "../core/selection.js";
-import { renderPianoRoll } from "./pianoRoll.js";
+import { renderPianoRoll, setPianoRollPosition } from "./pianoRoll.js";
 import { createTransportBar, checkboxField } from "./transportBar.js";
 import { createBlockToolbar } from "./blockToolbar.js";
 
@@ -235,6 +235,9 @@ export function renderTimeline(container, project) {
     const beat = getPositionBeats();
     playhead.style.transform = `translateX(${beat * view.pixelsPerBeat}px)`;
     transportBar.setPosition(beat);
+    if (pianoRollBlockId) {
+      setPianoRollPosition(beat);
+    }
   }
 
   // Page-turn scrolling (not continuous), so the lanes stay readable while playing. Also
@@ -499,6 +502,7 @@ export function renderTimeline(container, project) {
       }
     }),
     bus.on("transport:seek", syncPlayhead),
+    bus.on("project:changed", renderLoopRegion),
   ];
 
   renderAll();

@@ -82,8 +82,25 @@ export function createTransportBar(project, { onLayoutChange, onTransportAction 
     }
     onTransportAction();
   });
+  // Tempo, beats-per-bar and loop can change from outside this bar (the block toolbar's Loop
+  // button, undo); the fields follow the model unless the user is typing in them.
+  function showProjectValues() {
+    const fields = [
+      [tempo.input, project.tempo],
+      [beatsPerBar.input, project.timeSignature.beatsPerBar],
+      [loopStart, project.loop.startBeat],
+      [loopEnd, project.loop.endBeat],
+    ];
+    for (const [input, value] of fields) {
+      if (document.activeElement !== input) {
+        input.value = String(value);
+      }
+    }
+    loop.input.checked = project.loop.enabled;
+  }
   const unsubscribers = [
     bus.on("recorder:changed", showRecording),
+    bus.on("project:changed", showProjectValues),
     bus.on("audio:state", showAudioState),
     // Normally invisible: Play already counts as the click that unlocks audio. This only shows
     // if the browser still refuses to start audio (e.g. play triggered without any gesture).

@@ -763,6 +763,21 @@ main {
   color: var(--fg);
 }
 
+.piano-roll-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: #ff5b5b;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.piano-roll-playhead[hidden] {
+  display: none;
+}
+
 .piano-roll-panel {
   border-top: 1px solid #2a2d35;
   background: #101216;

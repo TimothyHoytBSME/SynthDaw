@@ -8,6 +8,7 @@ import {
   deleteSelectedBlock,
   transposeSelectedBlock,
   transposeSelectedBlockByOctaves,
+  loopSelectedBlock,
 } from "../core/blockActions.js";
 import { formatPosition } from "./transportBar.js";
 
@@ -76,6 +77,9 @@ export function createBlockToolbar(project, { onEditNotes }) {
     }),
     button("⧉ Duplicate", "Duplicate after itself (Ctrl+D)", () => duplicateSelectedBlock(project)),
     button("⎘ Copy", "Copy block (Ctrl+C; Ctrl+X cuts)", () => copySelectedBlock(project)),
+    button("⟲ Loop", "Loop this block: set the loop range to its bounds and enable looping", () =>
+      loopSelectedBlock(project),
+    ),
     transposeGroup,
     button("🗑 Delete", "Delete block (Delete)", () => deleteSelectedBlock(project)),
   );

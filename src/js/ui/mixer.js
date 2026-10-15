@@ -223,10 +223,16 @@ function renderMasterStrip(project) {
   return strip;
 }
 
+// Module-level so the strip scroll survives full re-renders (undo/redo/import).
+let stripsScrollLeft = 0;
+
 export function renderMixer(container, project) {
+  let strips = null;
+
   function render() {
+    stripsScrollLeft = strips?.scrollLeft ?? stripsScrollLeft;
     container.innerHTML = "";
-    const strips = document.createElement("div");
+    strips = document.createElement("div");
     strips.className = "mixer-strips";
     const selectedTrack = getSelectedTrack(project);
     for (const track of project.tracks) {
@@ -234,6 +240,7 @@ export function renderMixer(container, project) {
     }
     strips.appendChild(renderMasterStrip(project));
     container.appendChild(strips);
+    strips.scrollLeft = stripsScrollLeft;
   }
 
   // Selection only changes a highlight class, so it's patched in place rather than re-rendering
@@ -250,5 +257,8 @@ export function renderMixer(container, project) {
     bus.on("selection:changed", highlightSelected),
   ];
   render();
-  return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+  return () => {
+    stripsScrollLeft = strips.scrollLeft;
+    unsubscribers.forEach((unsubscribe) => unsubscribe());
+  };
 }

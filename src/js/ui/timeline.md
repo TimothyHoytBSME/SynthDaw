@@ -22,6 +22,6 @@ It returns a disposer (cancels the rAF loop and unsubscribes).
 - Structural changes (`renderTracks`/`renderAll`) rebuild the DOM. Selection changes only toggle classes (`highlightSelection`), since selecting happens on a block's pointerdown and a rebuild would destroy the element being dragged.
 - After a drag, a rebuild happens only if something actually changed. Rebuilding after a plain click would replace the element between the two clicks of a double-click.
 - Listens to `project:blocks-changed` (from [blockActions.js](../core/blockActions.md), or after a drag), which triggers a full redraw plus a piano-roll refresh, and to `block:notes-changed` (from the piano roll), which redraws just that block's preview.
-- `view` (zoom) and `pianoRollBlockId` are module-level, so undo/redo/import re-renders keep the zoom and reopen the piano roll on the same block id (closing it if that block is gone). `showPianoRoll` doesn't touch selection, and `openPianoRoll` also selects the block.
+- `view` (zoom, follow, and the scroll position, saved by the disposer and restored after the first `renderAll`) and `pianoRollBlockId` are module-level, so undo/redo/import re-renders keep the zoom and scroll and reopen the piano roll on the same block id (closing it if that block is gone). `showPianoRoll` doesn't touch selection, and `openPianoRoll` also selects the block.
 
 **Coupling:** `TRACK_HEADER_WIDTH` (120) must match `.timeline-track-header`'s width in `main.css`. Lane gridlines come from CSS custom properties `--bar-px`/`--beat-px`, set per lane.

@@ -43,11 +43,23 @@ function handleChanged() {
   }, DEBOUNCE_MS);
 }
 
+// A wholesale replacement (New, Import, Load Demo) ends the current burst at once, so the
+// replacement and whatever the user edits right afterwards stay separate undo steps.
+function settleNow() {
+  if (isRestoring || !debounceTimer) {
+    return;
+  }
+  clearTimeout(debounceTimer);
+  debounceTimer = null;
+  lastSnapshot = clone(project);
+}
+
 export function initHistory(theProject, restoreCallback) {
   project = theProject;
   onRestore = restoreCallback;
   lastSnapshot = clone(project);
   bus.on("project:changed", handleChanged);
+  bus.on("project:replaced", settleNow);
   notifyHistoryChanged();
 }
 

@@ -46,7 +46,11 @@ async function init() {
 
   // Full re-render, used at startup and whenever the project is replaced wholesale (New,
   // Import, undo/redo). Each view returns a disposer so re-rendering never stacks listeners.
+  // Each view also keeps its own scroll position across the rebuild; the page scroll is kept
+  // here, since emptying the containers momentarily shortens the page.
+  const main = document.querySelector("main");
   function renderProjectUI() {
+    const pageScrollTop = main.scrollTop;
     disposers.forEach((dispose) => dispose());
     for (const container of [timelineContainer, mixerContainer, patchEditorContainer]) {
       container.innerHTML = "";
@@ -56,6 +60,7 @@ async function init() {
       renderPatchEditor(patchEditorContainer, project),
       renderMixer(mixerContainer, project),
     ];
+    main.scrollTop = pageScrollTop;
   }
 
   renderProjectUI();

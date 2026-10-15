@@ -342,6 +342,9 @@ export function replaceProjectContents(target, source) {
   normalizeProject(target);
   syncIdCounter(target);
   notifyChanged();
+  // Lets history.js close its debounce burst: a replacement must be its own undo step, not
+  // merged with an edit made in the next half second.
+  bus.emit("project:replaced", {});
 }
 
 // Must be called after loading/importing project data from outside this session (IndexedDB,

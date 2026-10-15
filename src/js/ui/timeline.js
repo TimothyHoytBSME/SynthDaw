@@ -32,8 +32,8 @@ const TRACK_HEADER_WIDTH = 120;
 const FOLLOW_EDGE_PX = 24;
 const FOLLOW_LEAD_FRACTION = 0.1;
 
-// Module-level so zoom and the open piano roll survive full re-renders (undo/redo/import).
-const view = { pixelsPerBeat: 40, trackHeight: 64, follow: true };
+// Module-level so zoom, scroll and the open piano roll survive full re-renders (undo/redo/import).
+const view = { pixelsPerBeat: 40, trackHeight: 64, follow: true, scrollLeft: 0, scrollTop: 0 };
 let pianoRollBlockId = null;
 
 function rangeField(labelText, min, max, value) {
@@ -500,10 +500,14 @@ export function renderTimeline(container, project) {
   ];
 
   renderAll();
+  scrollArea.scrollLeft = view.scrollLeft;
+  scrollArea.scrollTop = view.scrollTop;
   refreshPianoRoll();
   animationFrame = requestAnimationFrame(updatePlayheadLoop);
 
   return () => {
+    view.scrollLeft = scrollArea.scrollLeft;
+    view.scrollTop = scrollArea.scrollTop;
     cancelAnimationFrame(animationFrame);
     transportBar.dispose();
     blockToolbar.dispose();

@@ -1,6 +1,6 @@
 import { createVoice } from "./voice.js";
 
-const MAX_VOICES = 8;
+const MAX_VOICES = 16;
 
 // Every note carries its own patch and destination (per-track instruments), so this engine
 // holds no patch of its own — only live-voice bookkeeping and the scheduled-voice registry.

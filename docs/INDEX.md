@@ -47,6 +47,7 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/audio/wavEncoder.md](../src/js/audio/wavEncoder.md) | Companion doc for `src/js/audio/wavEncoder.js`, `AudioBuffer` → WAV file encoding. |
 | [src/js/core/history.md](../src/js/core/history.md) | Companion doc for `src/js/core/history.js`, snapshot-based undo/redo. |
 | [src/js/core/keyboardShortcuts.md](../src/js/core/keyboardShortcuts.md) | Companion doc for `src/js/core/keyboardShortcuts.js`, global transport/undo/block-editing shortcuts. |
+| [.github/workflows/pages.md](../.github/workflows/pages.md) | Companion doc for `pages.yml`, the GitHub Pages deployment workflow. |
 | [tools/devServer.md](../tools/devServer.md) | Companion doc for `tools/devServer.py`, the no-cache static dev server. |
 | [src/js/audio/presets.md](../src/js/audio/presets.md) | Companion doc for `src/js/audio/presets.js`, built-in synth patch presets. |
 | [src/js/core/selection.md](../src/js/core/selection.md) | Companion doc for `src/js/core/selection.js`, selected track/block UI state. |

@@ -40,6 +40,15 @@ const ACID_RIFF = [
   [47, 0.2, 104], [40, 0.2, 70], [43, 0.45, 100], [45, 0.2, 84],
 ];
 
+// Second half of the drop: the riff climbs and answers itself (E2 E2 B2 E2 D3 E2 E3 D3 ...).
+const ACID_RIFF_B = [
+  [40, 0.2, 110], [40, 0.2, 70], [47, 0.2, 100], [40, 0.2, 70],
+  [50, 0.2, 104], [40, 0.2, 70], [52, 0.45, 112], [50, 0.2, 84],
+  [40, 0.2, 110], [43, 0.2, 90], [40, 0.2, 70], [45, 0.2, 100],
+  [40, 0.2, 70], [47, 0.2, 104], [45, 0.45, 100], [43, 0.2, 84],
+];
+const GATE_CHORD_LIFT = [67, 71, 74]; // G4 B4 D5: the relative major over the E bass
+
 // Squelch blips: sparse 16ths, high in the E minor pentatonic (E5 G5 B5 D6).
 const SQUELCH_HITS = [
   [2, 76], [7, 79], [11, 83], [14, 86],
@@ -55,6 +64,14 @@ const OUTRO = [28, 4];
 
 function barsOf([first, count]) {
   return Array.from({ length: count }, (_, index) => first + index);
+}
+
+// The bar before the drop: kick, bass and hats stop half a beat early, under the snare roll.
+const GAP_BAR = BUILD[0] + BUILD[1] - 1;
+const GAP_BEAT = 3.5;
+
+function outroScale(bar) {
+  return bar >= OUTRO[0] ? 1 - (0.25 * (bar - OUTRO[0])) / OUTRO[1] : 1;
 }
 
 // One block per section, each note list built bar by bar with `perBar(barStartBeat, bar)`.
@@ -79,9 +96,9 @@ function kickTrack() {
   patch.ampEnvelope.decay = 0.3;
   patch.pitchEnvelope = { amount: 26, decay: 0.09 };
   return track("Kick", patch, {
-    volume: 0.75,
-    blocks: sectionBlocks([INTRO, GROOVE, BUILD, DROP, OUTRO], (start) =>
-      [0, 1, 2, 3].map((beat) => note(KICK_NOTE, start + beat, 0.5, 120)),
+    volume: 0.64,
+    blocks: sectionBlocks([INTRO, GROOVE, BUILD, DROP, OUTRO], (start, bar) =>
+      [0, 1, 2, 3].map((beat) => note(KICK_NOTE, start + beat, 0.5, Math.round([122, 112, 118, 112][beat] * outroScale(bar)))),
     ),
   });
 }
@@ -94,19 +111,21 @@ function bassTrack() {
       { type: "sawtooth", octave: 0, detune: 0, mix: 0.8 },
       { type: "square", octave: 0, detune: 0, mix: 0.35 },
     ],
-    filter: { type: "lowpass", cutoff: 170, resonance: 2.5, envAmount: 1500 },
+    filter: { type: "lowpass", cutoff: 240, resonance: 2.5, envAmount: 2000, velocitySensitivity: 0.5 },
     ampEnvelope: { attack: 0.002, decay: 0.11, sustain: 0.25, release: 0.04 },
     filterEnvelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.05 },
     gain: 0.85,
   });
   return track("Roll Bass", patch, {
-    volume: 0.6,
-    effects: [effect("eq", { low: 2, mid: 1, high: 0 })],
+    volume: 0.55,
+    effects: [effect("eq", { low: 1, mid: 1, high: 0 })],
     blocks: sectionBlocks([INTRO, GROOVE, BUILD, DROP, OUTRO], (start, bar) =>
       bar < INTRO[0] + 2
         ? []
         : [0, 1, 2, 3].flatMap((beat) =>
-            [1, 2, 3].map((step) => note(BASS_NOTE, start + beat + step * SIXTEENTH, 0.2, step === 2 ? 104 : 118)),
+            [1, 2, 3]
+              .filter((step) => !(bar === GAP_BAR && beat + step * SIXTEENTH >= GAP_BEAT))
+              .map((step) => note(BASS_NOTE, start + beat + step * SIXTEENTH, 0.2, Math.round((step === 2 ? 96 : 118) * outroScale(bar)))),
           ),
     ),
   });
@@ -116,7 +135,10 @@ function bassTrack() {
 function snareTrack() {
   const patch = createPresetPatch("Snare");
   patch.gain = 1;
-  const rollBar = BUILD[0] + BUILD[1] - 1;
+  // A gentler pitch drop than the preset's: the 16th roll smeared the preset's 7-semitone
+  // sweep into off-key energy around F.
+  patch.pitchEnvelope = { amount: 3, decay: 0.05 };
+  const rollBar = GAP_BAR;
   return track("Snare", patch, {
     volume: 0.85,
     pan: 0.05,
@@ -144,7 +166,19 @@ function closedHatTrack() {
       const openHatsPlaying = bar >= GROOVE[0] && bar < BREAK[0] || bar >= DROP[0];
       return sixteenths()
         .filter((step) => !(openHatsPlaying && step % 4 === 2))
-        .map((step) => note(HAT_NOTE, start + step * SIXTEENTH, 0.12, step % 4 === 2 ? 100 : step % 2 === 0 ? 66 : 52));
+        .filter((step) => !(bar === GAP_BAR && step * SIXTEENTH >= GAP_BEAT))
+        .map((step) => {
+          // Accents on the "and"s, a lighter one on the "a" of 2 every other bar, and a swell
+          // through the last beat of every fourth bar.
+          let velocity = step % 4 === 2 ? 100 : step % 2 === 0 ? 66 : 52;
+          if (bar % 2 === 1 && step === 7) {
+            velocity = 80;
+          }
+          if (bar % 4 === 3 && step >= 12 && bar !== GAP_BAR) {
+            velocity = 56 + (step - 12) * 14;
+          }
+          return note(HAT_NOTE, start + step * SIXTEENTH, 0.12, velocity);
+        });
     }),
   });
 }
@@ -153,8 +187,10 @@ function openHatTrack() {
   return track("Open Hat", createPresetPatch("Open Hat"), {
     volume: 0.6,
     pan: -0.2,
-    blocks: sectionBlocks([GROOVE, DROP, OUTRO], (start) =>
-      [0.5, 1.5, 2.5, 3.5].map((beat) => note(HAT_NOTE, start + beat, 0.25, 96)),
+    blocks: sectionBlocks([GROOVE, DROP, OUTRO], (start, bar) =>
+      (bar % 4 === 3 ? [0.5, 1.5, 2.5, 3.5, 3.75] : [0.5, 1.5, 2.5, 3.5]).map((beat) =>
+        note(HAT_NOTE, start + beat, 0.25, beat === 3.75 ? 78 : 96),
+      ),
     ),
   });
 }
@@ -168,7 +204,7 @@ function acidTrack() {
       { type: "sawtooth", octave: 0, detune: -4, mix: 0.6 },
       { type: "sawtooth", octave: 0, detune: 5, mix: 0.4 },
     ],
-    filter: { type: "lowpass", cutoff: 1300, resonance: 9, envAmount: 2200 },
+    filter: { type: "lowpass", cutoff: 1300, resonance: 9, envAmount: 2200, velocitySensitivity: 0.6 },
     ampEnvelope: { attack: 0.003, decay: 0.2, sustain: 0.5, release: 0.08 },
     filterEnvelope: { attack: 0.001, decay: 0.16, sustain: 0.1, release: 0.1 },
     lfo: { rate: 0.2, depth: 0.28, target: "filter", sync: "2/1" },
@@ -181,13 +217,15 @@ function acidTrack() {
       effect("delay", { sync: "1/8.", feedback: 0.3, mix: 0.22 }),
       effect("eq", { low: -3, mid: 1, high: 1 }),
     ],
-    blocks: sectionBlocks([GROOVE, BUILD, DROP], (start, bar) =>
-      bar < GROOVE[0] + 4
-        ? ACID_RIFF.filter((_, step) => step % 2 === 0).map(([pitch, length, velocity], index) =>
-            note(pitch, start + index * 2 * SIXTEENTH, length, velocity - 10),
-          )
-        : ACID_RIFF.map(([pitch, length, velocity], step) => note(pitch, start + step * SIXTEENTH, length, velocity)),
-    ),
+    blocks: sectionBlocks([GROOVE, BUILD, DROP], (start, bar) => {
+      if (bar < GROOVE[0] + 4) {
+        return ACID_RIFF.filter((_, step) => step % 2 === 0).map(([pitch, length, velocity], index) =>
+          note(pitch, start + index * 2 * SIXTEENTH, length, velocity - 10),
+        );
+      }
+      const riff = bar >= DROP[0] + 4 ? ACID_RIFF_B : ACID_RIFF;
+      return riff.map(([pitch, length, velocity], step) => note(pitch, start + step * SIXTEENTH, length, velocity));
+    }),
   });
 }
 
@@ -214,8 +252,8 @@ function gateTrack() {
     volume: 0.9,
     pan: -0.3,
     effects: [effect("delay", { sync: "1/8", feedback: 0.25, mix: 0.2 })],
-    blocks: sectionBlocks([BREAK, DROP], (start) =>
-      GATE_CHORD.map((pitch) => note(pitch, start, BEATS_PER_BAR, 84)),
+    blocks: sectionBlocks([BREAK, DROP], (start, bar) =>
+      (bar >= DROP[0] + 4 ? GATE_CHORD_LIFT : GATE_CHORD).map((pitch) => note(pitch, start, BEATS_PER_BAR, 84)),
     ),
   });
 }
@@ -287,7 +325,7 @@ export function createNeonVortexProject() {
     riserTrack(),
   ];
   project.master = {
-    volume: 0.42,
+    volume: 0.46,
     effects: [effect("eq", { low: 1, mid: 0, high: 1 }), effect("compressor", { threshold: -18, ratio: 3 })],
   };
   project.loop = { enabled: true, startBeat: 0, endBeat: SONG_BARS * BEATS_PER_BAR };

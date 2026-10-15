@@ -269,3 +269,9 @@ Chronological history of notable actions taken by any agent in this project. App
 - Agent/Model: Claude Opus 5.5
 - What: Copied the local Claude Code auto-memory (on the Windows machine only) into `.agents/MEMORY.md`, and added a root `CLAUDE.md` that imports `.agents/CLAUDE.md` and `.agents/MEMORY.md`. Claude Code only auto-loads root-level instructions, so without that file cloud sessions wouldn't see the project rules. Pushed `master` to https://github.com/TimothyHoytBSME/SynthDaw, which was empty, using the user's local git credentials.
 - Commit(s): see the commit that adds `.agents/MEMORY.md`
+
+### 2026-10-15 — Third full review (no code changes)
+- Agent/Model: Claude Fable 5.1
+- What: Read every source file and ran the app headless in Chromium (page load, demo loading, transport clock, undo, phone-width layout, offline renders of all three demos; nothing was played). Wrote the findings up as "Third review (2026-10-15)" in `PLAN.md`, ranked. Highlights: Export WAV schedules every note up front, so render time grows with note count (Neon Riptide took 12.5 min headless; scheduling a bar ahead via `OfflineAudioContext.suspend()` was 2.7× faster on Neon Pulse); the metronome click runs through the master effects, so the demos' master compressor ducks the music on each click; undo/redo reset the timeline scroll; Delete with the piano roll open deletes the block; no sustain pedal; a demo load overwrites the only autosave slot. Simple wins and features are listed in the review.
+- Why: The user asked for a review after pushing the repo to GitHub, looking for glaring issues, simple wins, UI improvements, bug fixes, optimizations and features.
+- Commit(s): see the commit that adds the review

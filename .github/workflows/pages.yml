@@ -27,6 +27,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # Stamp the deployed commit into the page header, so a stale cached copy is recognisable.
+      - run: sed -i "s|<span id=\"app-version\">dev</span>|<span id=\"app-version\">${GITHUB_SHA::7}</span>|" src/index.html
       - uses: actions/configure-pages@v5
         with:
           enablement: true

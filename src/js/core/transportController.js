@@ -10,6 +10,10 @@ import {
   cancelScheduledNotes,
 } from "../audio/audioEngine.js";
 
+// A note whose start is already further in the past than this (a stalled main thread, a very
+// late tick) is dropped rather than started "now": a burst of late notes sounds worse than a gap.
+const LATE_TOLERANCE_SECONDS = 0.05;
+
 let transport = null;
 let metronomeEnabled = true;
 let project = null;
@@ -27,9 +31,13 @@ function scheduleMetronome(windowStart, windowEnd, beatToContextTime) {
   }
   const beatsPerBar = project?.timeSignature.beatsPerBar ?? 4;
   const firstBeat = Math.ceil(windowStart - 1e-9);
+  const context = ensureAudioContext();
   for (let beat = firstBeat; beat < windowEnd; beat += 1) {
     const accented = Math.round(beat) % beatsPerBar === 0;
-    playClick(ensureAudioContext(), getClickDestination(), beatToContextTime(beat), accented);
+    const time = beatToContextTime(beat);
+    if (time >= context.currentTime - LATE_TOLERANCE_SECONDS) {
+      playClick(context, getClickDestination(), time, accented);
+    }
   }
 }
 
@@ -62,15 +70,20 @@ function scheduleProjectNotes(windowStart, windowEnd, beatToContextTime) {
   const mixer = getMixer();
   const tempo = transport.getTempo();
   const notes = getSortedNotes();
+  const tooLate = ensureAudioContext().currentTime - LATE_TOLERANCE_SECONDS;
   for (let index = firstNoteIndexFrom(notes, windowStart); index < notes.length; index += 1) {
     const playable = notes[index];
     if (playable.startBeat >= windowEnd) {
       break;
     }
+    const startTime = beatToContextTime(playable.startBeat);
+    if (startTime < tooLate) {
+      continue;
+    }
     scheduleNote(
       playable.note,
       playable.velocity,
-      beatToContextTime(playable.startBeat),
+      startTime,
       beatsToSeconds(playable.lengthBeats, tempo),
       playable.track.patch,
       mixer.getTrackBus(playable.track.id).gainNode,

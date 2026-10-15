@@ -2,28 +2,35 @@ import { bus } from "./eventBus.js";
 import { createTicker } from "./ticker.js";
 
 const LOOKAHEAD_MS = 25;
-const SCHEDULE_AHEAD_SECONDS = 0.1;
-// In a hidden tab the ticker (a worker) keeps running, but the page itself gets less time and
-// its own callbacks can be delayed, so audio is scheduled further ahead there.
-const HIDDEN_SCHEDULE_AHEAD_SECONDS = 1;
+// How far ahead of real time audio is scheduled. Generous on purpose: a page that is behind
+// another tab, or an unfocused window on a busy machine, can have its main thread stalled for
+// hundreds of milliseconds, and anything not yet scheduled by then plays late or not at all.
+// The cost is only that tempo changes and loop edits reach the audio this much later.
+const SCHEDULE_AHEAD_SECONDS = 0.5;
+const HIDDEN_SCHEDULE_AHEAD_SECONDS = 2;
 
 function scheduleAheadSeconds() {
   return typeof document !== "undefined" && document.hidden ? HIDDEN_SCHEDULE_AHEAD_SECONDS : SCHEDULE_AHEAD_SECONDS;
 }
 
-// `onSchedule(windowStart, windowEnd, beatToContextTime)` is called every poll with the next
-// window of beats to schedule; `onCancel()` is called whenever audio already scheduled ahead
-// becomes invalid (stop, pause, seek) so the owner can silence it.
+// `onSchedule(windowStart, windowEnd, beatToContextTime)` is called with consecutive windows of
+// beats to schedule; a window never crosses the loop seam, and `beatToContextTime` maps a beat
+// in that window to an AudioContext time. `onCancel()` is called whenever audio already
+// scheduled ahead becomes invalid (stop, pause, seek, loop change) so the owner can silence it.
 export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
   let tempo = 120;
   let running = false;
+  // The clock anchor: position `startBeat` was at context time `startContextTime`. While
+  // running, time since the anchor counts "unwrapped" beats, which can run past the loop end;
+  // `wrap()` folds them back into the loop. The anchor never moves at the seam.
   let startContextTime = 0;
   let startBeat = 0;
-  let scheduledUpToBeat = 0;
-  const ticker = createTicker(LOOKAHEAD_MS, () => poll());
+  // Scheduling cursor, in the same unwrapped frame as rawUnwrappedBeats().
+  let cursor = 0;
   // Set while play() waits for a suspended AudioContext to actually start running.
   let pendingStart = null;
   let loop = { enabled: false, startBeat: 0, endBeat: 8 };
+  const ticker = createTicker(LOOKAHEAD_MS, () => poll());
 
   function beatsToSeconds(beats) {
     return beats * (60 / tempo);
@@ -33,75 +40,61 @@ export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
     return loop.enabled && loop.endBeat > loop.startBeat;
   }
 
+  function loopLength() {
+    return loop.endBeat - loop.startBeat;
+  }
+
   function isInsideLoop(beat) {
     return beat >= loop.startBeat && beat < loop.endBeat;
   }
 
-  function rawPositionBeats() {
+  function rawUnwrappedBeats() {
     if (!running) {
       return startBeat;
     }
     return startBeat + (audioContext.currentTime - startContextTime) * (tempo / 60);
   }
 
+  function wrap(beat) {
+    if (loopIsValid() && beat >= loop.endBeat) {
+      return loop.startBeat + ((beat - loop.startBeat) % loopLength());
+    }
+    return beat;
+  }
+
   function getPositionBeats() {
-    const raw = rawPositionBeats();
-    // Safety net for display/reads between poll() ticks: poll() is what actually re-anchors
-    // startBeat/startContextTime at the exact wrap instant, but up to one LOOKAHEAD_MS after
-    // truly crossing loop.endBeat, `raw` itself may still read slightly past it. Wrapping here
-    // too keeps every reader (the UI playhead, pause()) seeing an already-in-range position.
-    if (loopIsValid() && raw >= loop.endBeat) {
-      const loopLength = loop.endBeat - loop.startBeat;
-      return loop.startBeat + ((raw - loop.startBeat) % loopLength);
-    }
-    return raw;
+    return wrap(rawUnwrappedBeats());
   }
 
-  function beatToContextTime(beat) {
-    return startContextTime + beatsToSeconds(beat - startBeat);
-  }
-
-  // Re-anchors startBeat/startContextTime to a wrapped value, exactly once, the instant real
-  // elapsed time actually crosses loop.endBeat (checked every poll, so within ~25ms of the
-  // true crossing). Returns whether it did so. Deliberately keyed off *real* position, not
-  // the scheduling lookahead below — using the lookahead here previously caused this to fire
-  // ~100ms early, before real playback had actually reached the boundary, which corrupted
-  // getPositionBeats() reads (and, worse, caused the scheduling window bookkeeping to mix
-  // pre-wrap and post-wrap beat numbers and massively over-schedule notes near the seam).
-  function catchUpPositionAnchor() {
-    if (!loopIsValid()) {
-      return false;
+  // The first unwrapped beat after `beat` at which the loop wraps (loop.endBeat, then every
+  // loop length after it). Windows stop there, because wrapped beats are discontinuous across it.
+  function nextSeamAfter(beat) {
+    if (beat < loop.endBeat) {
+      return loop.endBeat;
     }
-    const real = rawPositionBeats();
-    if (real < loop.endBeat) {
-      return false;
-    }
-    const loopLength = loop.endBeat - loop.startBeat;
-    const cyclesPassed = Math.floor((real - loop.startBeat) / loopLength);
-    startBeat = real - cyclesPassed * loopLength;
-    startContextTime = audioContext.currentTime;
-    return true;
+    return loop.endBeat + (Math.floor((beat - loop.endBeat) / loopLength()) + 1) * loopLength();
   }
 
   function poll() {
-    if (catchUpPositionAnchor()) {
-      // Real playback just crossed the loop end. Everything up to loop.endBeat was already
-      // scheduled by previous ticks (each capped its window there — see below); pick up
-      // scheduling from loop.startBeat using the anchor we just reset above.
-      scheduledUpToBeat = loop.startBeat;
+    const horizon = rawUnwrappedBeats() + (scheduleAheadSeconds() * tempo) / 60;
+    while (cursor < horizon) {
+      const windowEnd = loopIsValid() ? Math.min(horizon, nextSeamAfter(cursor)) : horizon;
+      const wrappedStart = wrap(cursor);
+      // Unwrapped minus wrapped is constant within a window (it never crosses a seam).
+      const frameOffset = cursor - wrappedStart;
+      const beatToContextTime = (beat) => startContextTime + beatsToSeconds(beat + frameOffset - startBeat);
+      onSchedule?.(wrappedStart, wrappedStart + (windowEnd - cursor), beatToContextTime);
+      cursor = windowEnd;
     }
+  }
 
-    const horizonBeat = rawPositionBeats() + (scheduleAheadSeconds() * tempo) / 60;
-    const windowStart = scheduledUpToBeat;
-    // Cap each tick's window at the loop boundary rather than splitting/wrapping past it in
-    // one call: the remainder beyond loop.endBeat gets scheduled on a later tick, once
-    // catchUpPositionAnchor has actually reset the anchor for that next cycle. This costs a
-    // little schedule-ahead buffer right at the seam (down to ~0ms instead of the usual
-    // ~100ms) but keeps every window unambiguously in one consistent beat frame.
-    const windowEnd = loopIsValid() ? Math.min(horizonBeat, loop.endBeat) : horizonBeat;
-
-    onSchedule?.(windowStart, windowEnd, beatToContextTime);
-    scheduledUpToBeat = windowEnd;
+  // Re-anchors the clock at the current position (tempo change) or at `beat` (seek, loop
+  // change), keeping the scheduling cursor in step with the new frame.
+  function reanchor(beat, { keepScheduled }) {
+    const previousRaw = rawUnwrappedBeats();
+    cursor = keepScheduled ? beat + (cursor - previousRaw) : beat;
+    startBeat = beat;
+    startContextTime = audioContext.currentTime;
   }
 
   // Coming back to a visible tab, or leaving it: top up the schedule right away with the new
@@ -122,7 +115,7 @@ export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
     }
     running = true;
     startContextTime = audioContext.currentTime;
-    scheduledUpToBeat = startBeat;
+    cursor = startBeat;
     poll();
     ticker.start();
     bus.emit("transport:play", {});
@@ -174,21 +167,24 @@ export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
       bus.emit("transport:stop", {});
     },
     seek(beat) {
-      startBeat = Math.max(0, beat);
+      const target = Math.max(0, beat);
       if (running) {
         onCancel?.();
-        startContextTime = audioContext.currentTime;
-        scheduledUpToBeat = startBeat;
+        reanchor(target, { keepScheduled: false });
+        poll();
+      } else {
+        startBeat = target;
       }
-      bus.emit("transport:seek", { beat: startBeat });
+      bus.emit("transport:seek", { beat: target });
     },
     setTempo(bpm) {
       if (bpm === tempo) {
         return;
       }
       if (running) {
-        startBeat = getPositionBeats();
-        startContextTime = audioContext.currentTime;
+        // Already-scheduled audio keeps its old timing (up to the schedule horizon); the
+        // cursor moves to the new frame so nothing is scheduled twice or skipped.
+        reanchor(getPositionBeats(), { keepScheduled: true });
       }
       tempo = bpm;
       bus.emit("transport:tempo", { tempo });
@@ -197,14 +193,25 @@ export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
       return tempo;
     },
     setLoop(nextLoop) {
+      // While running, windows scheduled ahead were cut at the old seam, so they are dropped
+      // (a short fade) and scheduling restarts from the current position in the new frame.
+      const position = getPositionBeats();
       loop = { ...loop, ...nextLoop };
+      if (running) {
+        onCancel?.();
+        reanchor(position, { keepScheduled: false });
+        poll();
+      }
       bus.emit("transport:loop", { loop });
     },
     getLoop() {
       return loop;
     },
     getPositionBeats,
-    beatToContextTime,
+    // Maps a beat near the current position to a context time (the current loop cycle).
+    beatToContextTime(beat) {
+      return startContextTime + beatsToSeconds(beat - startBeat);
+    },
     // True while playing or while a play() is waiting for audio to start, so a second
     // Space/Play press during that wait toggles it off instead of stacking another start.
     isRunning() {

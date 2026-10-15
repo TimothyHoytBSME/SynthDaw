@@ -9,7 +9,9 @@ export function createDefaultPatch() {
       { type: "sawtooth", octave: 0, detune: 0, mix: 0.7 },
       { type: "square", octave: 0, detune: -7, mix: 0.3 },
     ],
-    filter: { type: "lowpass", cutoff: 2200, resonance: 1, envAmount: 1800 },
+    // velocitySensitivity scales envAmount by velocity: 0 = every note sweeps the same, 1 = a
+    // velocity-1 note gets no sweep and a velocity-127 note the full amount.
+    filter: { type: "lowpass", cutoff: 2200, resonance: 1, envAmount: 1800, velocitySensitivity: 0 },
     ampEnvelope: { attack: 0.01, decay: 0.18, sustain: 0.65, release: 0.25 },
     filterEnvelope: { attack: 0.01, decay: 0.25, sustain: 0.3, release: 0.3 },
     // Each note starts `amount` semitones off pitch and glides back over `decay` seconds

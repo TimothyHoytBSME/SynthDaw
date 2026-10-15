@@ -40,6 +40,7 @@ export const PATCH_SECTIONS = [
       { path: "filter.cutoff", label: "Cutoff", min: 40, max: 16000, scale: "log", format: hertz },
       { path: "filter.resonance", label: "Resonance", min: 0.1, max: 20, step: 0.1, format: fixed(1) },
       { path: "filter.envAmount", label: "Env amount", min: 0, max: 8000, step: 10, format: hertz },
+      { path: "filter.velocitySensitivity", label: "Vel → env", min: 0, max: 1, step: 0.01, format: percent },
     ],
   },
   { title: "Amp envelope", fields: envelopeFields("ampEnvelope") },

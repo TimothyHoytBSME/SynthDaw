@@ -88,6 +88,12 @@ function createSource(audioContext, oscPatch, frequency, detune) {
 export function createVoice(audioContext, destination, note, velocity, patch, { bendCents = 0, tempo = 120 } = {}) {
   const baseFrequency = noteToFrequency(note);
   const velocityScale = velocity / 127;
+
+  // Accented notes open the filter further when the patch asks for it (classic pluck/acid feel).
+  function filterEnvAmount() {
+    const sensitivity = patch.filter.velocitySensitivity ?? 0;
+    return patch.filter.envAmount * (1 - sensitivity * (1 - velocityScale));
+  }
   let applied = JSON.parse(JSON.stringify(patch));
   let startTime = null;
   let releaseAt = null;
@@ -198,7 +204,7 @@ export function createVoice(audioContext, destination, note, velocity, patch, { 
   }
 
   function filterSustainHz() {
-    return patch.filter.cutoff + patch.filter.envAmount * patch.filterEnvelope.sustain;
+    return patch.filter.cutoff + filterEnvAmount() * patch.filterEnvelope.sustain;
   }
 
   // Moves an enveloped param to a new held level from `now`, then puts back the release a
@@ -248,6 +254,7 @@ export function createVoice(audioContext, destination, note, velocity, patch, { 
     const filterChanged =
       changed((p) => p.filter.cutoff) ||
       changed((p) => p.filter.envAmount) ||
+      changed((p) => p.filter.velocitySensitivity) ||
       changed((p) => p.filterEnvelope.sustain);
     if (held && filterChanged) {
       retargetHeld(filter.frequency, filterSustainHz(), patch.filter.cutoff, now);
@@ -293,7 +300,7 @@ export function createVoice(audioContext, destination, note, velocity, patch, { 
         filter.frequency,
         patch.filterEnvelope,
         patch.filter.cutoff,
-        patch.filter.cutoff + patch.filter.envAmount,
+        patch.filter.cutoff + filterEnvAmount(),
         startTime,
       );
       schedulePitchEnvelope(startTime);

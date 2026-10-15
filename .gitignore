@@ -6,3 +6,6 @@ build/
 Thumbs.db
 .vscode/
 *.local
+
+# Scratch reference copy of src/ used by A/B render tests
+src/ref/

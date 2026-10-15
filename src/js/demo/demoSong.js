@@ -36,18 +36,28 @@ function phrase(perBar) {
 // Blocks for each 4-bar section listed, all built from the same phrase generator (with fresh
 // ids per copy, like the Duplicate action would produce).
 function sections(sectionIndexes, perBar) {
-  return sectionIndexes.map((section) => block(section * SECTION_BEATS, phrase(perBar), SECTION_BEATS));
+  return sectionIndexes.map((section) =>
+    block(section * SECTION_BEATS, phrase((chord, start) => perBar(chord, start, section)), SECTION_BEATS),
+  );
 }
 
 // Track volumes in the builders below were balanced by rendering each track solo offline and
 // comparing RMS. The bass sits low mostly because the distortion effect adds a lot of gain.
+// The pad swells a little as the song fills out: 72 in the intro, 78 with the rhythm, 82 under
+// the high lead.
+const PAD_VELOCITY_BY_SECTION = [72, 78, 78, 82];
+
 function padTrack() {
   const patch = createPresetPatch("Soft Pad");
   return track("Pad", patch, {
     volume: 0.85,
     effects: [effect("chorus", { mix: 0.4 }), effect("reverb", { size: 3.5, mix: 0.45 })],
-    blocks: sections([0, 1, 2, 3], (chord, start) =>
-      chord.triad.map((pitch) => note(pitch, start, BEATS_PER_BAR, 78)),
+    blocks: [0, 1, 2, 3].map((section) =>
+      block(
+        section * SECTION_BEATS,
+        phrase((chord, start) => chord.triad.map((pitch) => note(pitch, start, BEATS_PER_BAR, PAD_VELOCITY_BY_SECTION[section]))),
+        SECTION_BEATS,
+      ),
     ),
   });
 }
@@ -57,18 +67,23 @@ function bassTrack() {
   return track("Bass", patch, {
     volume: 0.15,
     effects: [effect("distortion", { drive: 0.25, mix: 0.3 }), effect("eq", { low: 3, mid: -2, high: 0 })],
-    // Straight 8ths on the root with an octave jump on the "and" of 3; downbeats accented.
-    blocks: sections([1, 2, 3], (chord, start) =>
+    // Straight 8ths on the root with an octave jump on the "and" of 3; downbeats accented. The
+    // song's last two 8ths walk G, E so the loop lands back on A.
+    blocks: sections([1, 2, 3], (chord, start, section) =>
       Array.from({ length: 8 }, (_, step) => {
-        const pitch = step === 5 ? chord.root + 12 : chord.root;
+        const lastBar = section === 3 && start === 3 * BEATS_PER_BAR;
+        const turnaround = lastBar && step >= 6 ? chord.root - 3 : null;
+        const pitch = turnaround ?? (step === 5 ? chord.root + 12 : chord.root);
         return note(pitch, start + step * 0.5, 0.45, step % 2 === 0 ? 112 : 82);
       }),
     ),
   });
 }
 
+// Velocity opens the pluck's filter, so the accented 16ths are brighter as well as louder.
 function arpTrack() {
   const patch = createPresetPatch("Pluck");
+  patch.filter.velocitySensitivity = 0.5;
   return track("Pluck Arp", patch, {
     volume: 0.8,
     pan: 0.35,
@@ -121,7 +136,7 @@ export function createDemoProject() {
   project.timeSignature.beatsPerBar = BEATS_PER_BAR;
   project.tracks = [padTrack(), bassTrack(), arpTrack(), leadTrack(), keysTrack()];
   project.master = {
-    volume: 0.5,
+    volume: 0.55,
     effects: [effect("eq", { low: 1, mid: 0, high: 2 }), effect("compressor", { threshold: -18, ratio: 3 })],
   };
   project.loop = { enabled: true, startBeat: 0, endBeat: SONG_BEATS };

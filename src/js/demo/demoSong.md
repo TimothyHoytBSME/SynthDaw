@@ -11,7 +11,9 @@
 | 9–12 | **Lead** (Saw Lead), **Keys** (Keys, customized) | Pitch vibrato, 8th delay + reverb; off-beat stabs with a deeper custom amp-LFO tremolo, panned left |
 | 13–16 | Lead an octave higher | The same melody transposed +1 octave, like Duplicate followed by "▲ Oct" |
 
-The master bus has an EQ into a compressor. Delay times are tempo-derived by hand (there's no tempo sync yet).
+The master bus has an EQ into a compressor. Delay times are tempo-derived by hand (this file predates tempo sync and is kept as the original).
+
+**Polish pass (2026-10-15):** the pad swells with the arrangement (velocity 72 in the intro, 78 with the rhythm, 82 under the high lead); the Pluck Arp's filter envelope follows velocity (`velocitySensitivity` 0.5), so its accented 16ths are brighter, not just louder; the bass's last two 8ths walk G, E so the loop lands back on A; master 0.5 → 0.55 (+0.8 dB) to sit closer to the later demos. Measured after: full sections −13.7 LUFS momentary max (K-weighted), peaks ≤ 0.57, 98% of spectral-peak energy in A minor.
 
 **Mix notes:** track volumes were set by rendering each track solo offline and comparing RMS. The intro is about −29 dB RMS and the full sections about −19 dB, with a 0.5 peak and no clipping. Two engine quirks shaped the numbers, and both are in the PLAN backlog:
 - **Distortion adds a lot of gain** (≈+19 dB on quiet signals, no output compensation), so the bass volume is low.

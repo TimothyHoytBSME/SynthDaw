@@ -1,13 +1,12 @@
-# Publishes the app (the static `src` folder) to GitHub Pages on every push to master or to a
-# claude/* working branch, so the latest pushed work is always testable at
-# https://timothyhoytbsme.github.io/SynthDaw/ without a local checkout.
+# Publishes the app (the static `src` folder) to GitHub Pages on every push to master, so the
+# merged work is always testable at https://timothyhoytbsme.github.io/SynthDaw/ without a local
+# checkout. Only master may deploy: the github-pages environment's branch rule rejects others.
 name: Deploy to GitHub Pages
 
 on:
   push:
     branches:
       - master
-      - "claude/**"
   workflow_dispatch:
 
 permissions:

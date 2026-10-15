@@ -909,6 +909,17 @@ main {
   border-bottom: 1px solid #2a2d35;
 }
 
+.piano-roll-toolbar button {
+  background: #2a2d35;
+  color: var(--fg);
+  border: 1px solid #3a3d46;
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  min-height: 32px;
+}
+
 .piano-roll-toolbar select {
   background: #101216;
   color: var(--fg);

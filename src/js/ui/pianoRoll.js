@@ -204,10 +204,16 @@ export function renderPianoRoll(container, block, { beatsPerBar = 4 } = {}) {
     "Click to add · drag to move · drag right edge to resize · drag empty space to select · double-click or right-click to delete";
   const SELECTION_HINT =
     "Selection: drag to move together · ↑/↓ transpose (Shift = octave) · Delete · Ctrl+C/V/D copy, paste at playhead, duplicate · Esc";
+  const quantizeButton = document.createElement("button");
+  quantizeButton.type = "button";
+  quantizeButton.textContent = "Quantize notes";
+  quantizeButton.title = "Snap the selected notes' starts (or every note, with nothing selected) to the snap grid";
+  quantizeButton.addEventListener("click", () => quantizeNotes(selectedIds.size > 0 ? selectedNotes(block) : block.notes));
+
   const hint = document.createElement("span");
   hint.className = "piano-roll-hint";
 
-  toolbar.append(zoomLabel, snapLabel, hint);
+  toolbar.append(zoomLabel, snapLabel, quantizeButton, hint);
 
   // --- Keys + grid ------------------------------------------------------------------------
 
@@ -364,6 +370,22 @@ export function renderPianoRoll(container, block, { beatsPerBar = 4 } = {}) {
       resizeNote(note, Math.min(maxLength, Math.max(settings.snap, snap(origin.lengthBeats + deltaBeats))));
       refreshNoteElements(note);
     }
+  }
+
+  // Snaps note starts to the current grid, keeping each note inside the block.
+  function quantizeNotes(notes) {
+    let changed = 0;
+    for (const note of notes) {
+      const snapped = Math.min(Math.max(0, block.lengthBeats - note.lengthBeats), Math.max(0, snap(note.startBeat)));
+      if (snapped !== note.startBeat) {
+        moveNote(note, snapped);
+        changed += 1;
+      }
+    }
+    if (changed > 0) {
+      rerender();
+    }
+    bus.emit("status:message", { text: changed > 0 ? `Quantized ${changed} note${changed === 1 ? "" : "s"} to the ${snapSelect.selectedOptions[0].textContent} grid.` : "Already on the grid." });
   }
 
   function deleteSelected() {

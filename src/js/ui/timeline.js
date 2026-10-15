@@ -547,13 +547,20 @@ export function renderTimeline(container, project) {
     renderAll();
     bus.emit("project:tracks-changed", {});
   });
+  // Zoom sliders fire many input events per frame; one rebuild per frame is enough (a rebuild
+  // of Neon Riptide's 2600 note previews takes about 30 ms).
+  let zoomFrame = 0;
+  function scheduleZoomRender(render) {
+    cancelAnimationFrame(zoomFrame);
+    zoomFrame = requestAnimationFrame(render);
+  }
   hZoom.input.addEventListener("input", () => {
     view.pixelsPerBeat = Number(hZoom.input.value);
-    renderAll();
+    scheduleZoomRender(renderAll);
   });
   vZoom.input.addEventListener("input", () => {
     view.trackHeight = Number(vZoom.input.value);
-    renderTracks();
+    scheduleZoomRender(renderTracks);
   });
 
   // Idle frames (paused, stopped) do nothing: the DOM is only touched when the position moved.
@@ -599,6 +606,7 @@ export function renderTimeline(container, project) {
     view.scrollLeft = scrollArea.scrollLeft;
     view.scrollTop = scrollArea.scrollTop;
     cancelAnimationFrame(animationFrame);
+    cancelAnimationFrame(zoomFrame);
     transportBar.dispose();
     blockToolbar.dispose();
     unsubscribers.forEach((unsubscribe) => unsubscribe());

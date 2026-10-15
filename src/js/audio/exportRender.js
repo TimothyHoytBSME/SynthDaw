@@ -1,35 +1,41 @@
 import { createSynthEngine } from "./synthEngine.js";
 import { createMixer } from "./mixer.js";
+import { ENGINE_SAMPLE_RATE } from "./audioEngine.js";
 import { playableNotes } from "../core/project.js";
 
-const SAMPLE_RATE = 44100;
 const RELEASE_TAIL_SECONDS = 2;
 const MIN_DURATION_SECONDS = 1;
+// Notes are added to the offline graph one chunk at a time, from suspend() callbacks, instead
+// of all up front. A voice scheduled for the future still costs CPU from time zero (its nodes
+// run and output silence), so up-front scheduling made render time grow with the note count:
+// Neon Riptide's 2619 notes took 12.5 minutes, versus 2.7x faster chunked on Neon Pulse.
+const CHUNK_BEATS = 4;
+const CHUNK_LEAD_SECONDS = 0.05;
 
-function projectEndBeat(project) {
-  let endBeat = 0;
-  for (const playable of playableNotes(project)) {
-    endBeat = Math.max(endBeat, playable.startBeat + playable.lengthBeats);
-  }
-  return endBeat;
+function sortedPlayableNotes(project) {
+  return Array.from(playableNotes(project)).sort((a, b) => a.startBeat - b.startBeat);
+}
+
+function endBeatOf(notes) {
+  return notes.reduce((end, note) => Math.max(end, note.startBeat + note.lengthBeats), 0);
 }
 
 // Renders the whole project offline, non-realtime, by standing up a second synth engine +
 // mixer against an OfflineAudioContext instead of the live one — every audio module here
 // (synthEngine.js, mixer.js, effectChain.js, effects/*) takes its AudioContext as a parameter
 // rather than reaching for a global, specifically so this kind of parallel offline graph is
-// possible without duplicating any DSP code.
-export async function renderProjectToBuffer(project) {
+// possible without duplicating any DSP code. `onProgress(fraction)` is called as chunks are
+// reached (0..1).
+export async function renderProjectToBuffer(project, { onProgress } = {}) {
   const secondsPerBeat = 60 / project.tempo;
-  const durationSeconds = Math.max(
-    MIN_DURATION_SECONDS,
-    projectEndBeat(project) * secondsPerBeat + RELEASE_TAIL_SECONDS,
-  );
+  const notes = sortedPlayableNotes(project);
+  const endBeat = endBeatOf(notes);
+  const durationSeconds = Math.max(MIN_DURATION_SECONDS, endBeat * secondsPerBeat + RELEASE_TAIL_SECONDS);
 
   const offlineContext = new OfflineAudioContext(
     2,
-    Math.ceil(durationSeconds * SAMPLE_RATE),
-    SAMPLE_RATE,
+    Math.ceil(durationSeconds * ENGINE_SAMPLE_RATE),
+    ENGINE_SAMPLE_RATE,
   );
 
   const masterGain = offlineContext.createGain();
@@ -39,16 +45,34 @@ export async function renderProjectToBuffer(project) {
   const synthEngine = createSynthEngine(offlineContext, masterGain);
   synthEngine.setTempo(project.tempo);
 
-  for (const playable of playableNotes(project)) {
-    synthEngine.scheduleNote(
-      playable.note,
-      playable.velocity,
-      playable.startBeat * secondsPerBeat,
-      playable.lengthBeats * secondsPerBeat,
-      playable.track.patch,
-      mixer.getTrackBus(playable.track.id).gainNode,
-    );
+  let nextIndex = 0;
+  function scheduleBefore(beat) {
+    while (nextIndex < notes.length && notes[nextIndex].startBeat < beat) {
+      const playable = notes[nextIndex];
+      synthEngine.scheduleNote(
+        playable.note,
+        playable.velocity,
+        playable.startBeat * secondsPerBeat,
+        playable.lengthBeats * secondsPerBeat,
+        playable.track.patch,
+        mixer.getTrackBus(playable.track.id).gainNode,
+      );
+      nextIndex += 1;
+    }
   }
 
-  return offlineContext.startRendering();
+  scheduleBefore(CHUNK_BEATS);
+  for (let beat = CHUNK_BEATS; beat < endBeat; beat += CHUNK_BEATS) {
+    const chunkStart = beat;
+    const suspendAt = chunkStart * secondsPerBeat - CHUNK_LEAD_SECONDS;
+    offlineContext.suspend(suspendAt).then(() => {
+      scheduleBefore(chunkStart + CHUNK_BEATS);
+      onProgress?.(suspendAt / durationSeconds);
+      offlineContext.resume();
+    });
+  }
+
+  const buffer = await offlineContext.startRendering();
+  onProgress?.(1);
+  return buffer;
 }

@@ -15,7 +15,7 @@ const UNLOCK_EVENTS = ["mousedown", "click", "keydown", "touchend"];
 // Devices can run at 192 kHz, where every oscillator, filter and convolution reverb costs 4x as
 // much: measured, the demo song's effect chains alone (no notes) needed 109% of real time at
 // 192 kHz, so the audio thread overloaded and produced total silence. At 48 kHz: 14%.
-const ENGINE_SAMPLE_RATE = 48000;
+export const ENGINE_SAMPLE_RATE = 48000;
 
 let audioContext = null;
 let masterGain = null;

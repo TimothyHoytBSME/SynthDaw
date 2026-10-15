@@ -87,7 +87,9 @@ export function renderProjectControls(container, project, onReplaced) {
     exportWavButton.disabled = true;
     exportWavButton.textContent = "Rendering…";
     try {
-      const audioBuffer = await renderProjectToBuffer(project);
+      const audioBuffer = await renderProjectToBuffer(project, {
+        onProgress: (fraction) => (exportWavButton.textContent = `Rendering… ${Math.round(fraction * 100)}%`),
+      });
       downloadBlob(audioBufferToWavBlob(audioBuffer), WAV_FILENAME);
     } catch (error) {
       window.alert(`Could not render audio: ${error.message}`);

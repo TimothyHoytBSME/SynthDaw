@@ -1,4 +1,4 @@
-import { getMasterAnalysers } from "../audio/audioEngine.js";
+import { getMasterAnalysers, getAudioContextIfStarted } from "../audio/audioEngine.js";
 
 const FLOOR_DB = -48;
 const CEILING_DB = 3;
@@ -8,6 +8,13 @@ const CLIP_HOLD_MS = 2000;
 const WIDTH = 96;
 const BAR_HEIGHT = 5;
 const BAR_GAP = 2;
+// Dropout detector: the audio clock (context.currentTime) is compared with the wall clock
+// (performance.now(), read at the same moment; not the rAF timestamp, which lags after a long
+// frame) every frame. While the audio thread keeps up, their difference is steady to within a
+// render quantum or an output buffer; when it misses deadlines (an underrun, heard as a crackle
+// or a garbled patch) the difference jumps by more than this and settles again. A stalled
+// *page* thread moves both clocks equally, so it doesn't count. Click the meter to reset.
+const DROPOUT_JUMP_SECONDS = 0.02;
 const ZONES = [
   { fromDb: FLOOR_DB, color: "#3fbf6f" },
   { fromDb: -12, color: "#d8c24a" },
@@ -53,7 +60,14 @@ export function createLevelMeter() {
 
   const clipLight = document.createElement("span");
   clipLight.className = "level-meter-clip";
-  element.append(canvas, clipLight);
+  const dropouts = document.createElement("span");
+  dropouts.className = "level-meter-dropouts";
+  dropouts.title = "Audio dropouts detected (the audio clock jumped against the wall clock). Click to reset.";
+  dropouts.hidden = true;
+  element.append(canvas, clipLight, dropouts);
+  let dropoutCount = 0;
+  let lastDrift = null;
+  let lastContextTime = null;
 
   const channels = [0, 1].map(() => ({ heldDb: -Infinity, heldAt: 0 }));
   let clippedAt = -Infinity;
@@ -63,7 +77,26 @@ export function createLevelMeter() {
   element.addEventListener("click", () => {
     clippedAt = -Infinity;
     clipLight.classList.remove("level-meter-clip--on");
+    dropoutCount = 0;
+    dropouts.hidden = true;
   });
+
+  function watchForDropouts() {
+    const context = getAudioContextIfStarted();
+    if (!context || context.state !== "running") {
+      lastDrift = null;
+      return;
+    }
+    const contextTime = context.currentTime;
+    const drift = contextTime - performance.now() / 1000;
+    if (lastDrift !== null && contextTime !== lastContextTime && Math.abs(drift - lastDrift) > DROPOUT_JUMP_SECONDS) {
+      dropoutCount += 1;
+      dropouts.textContent = `⚠ ${dropoutCount}`;
+      dropouts.hidden = false;
+    }
+    lastDrift = drift;
+    lastContextTime = contextTime;
+  }
 
   function drawBar(y, db, heldDb) {
     const levelX = xForDb(db);
@@ -84,6 +117,7 @@ export function createLevelMeter() {
   let drewIdle = false;
   function draw(now) {
     frame = requestAnimationFrame(draw);
+    watchForDropouts();
     const analysers = getMasterAnalysers();
     if (!analysers && drewIdle) {
       return; // nothing to meter yet; the idle face is already on screen

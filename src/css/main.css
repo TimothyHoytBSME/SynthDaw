@@ -388,6 +388,16 @@ main {
   background: #3a2020;
 }
 
+.level-meter-dropouts {
+  font-size: 0.7rem;
+  color: #ffb35b;
+  font-family: ui-monospace, monospace;
+}
+
+.level-meter-dropouts[hidden] {
+  display: none;
+}
+
 .level-meter-clip--on {
   background: #ff3b30;
   box-shadow: 0 0 6px #ff3b30;

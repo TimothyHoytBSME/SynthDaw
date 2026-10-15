@@ -176,6 +176,11 @@ export function getMasterAnalysers() {
   return masterAnalysers;
 }
 
+// The live context if it exists, else null; never creates it (for read-only diagnostics).
+export function getAudioContextIfStarted() {
+  return audioContext;
+}
+
 export function ensureAudioContext() {
   return ensureContext();
 }

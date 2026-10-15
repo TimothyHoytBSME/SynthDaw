@@ -816,6 +816,24 @@ main {
   color: var(--fg);
 }
 
+.piano-roll-note--selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 1px #fff;
+  z-index: 2;
+}
+
+.piano-roll-marquee {
+  position: absolute;
+  border: 1px dashed #cfd8ff;
+  background: rgba(91, 140, 255, 0.18);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.piano-roll-marquee[hidden] {
+  display: none;
+}
+
 .piano-roll-playhead {
   position: absolute;
   top: 0;

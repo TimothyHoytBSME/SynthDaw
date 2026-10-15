@@ -217,14 +217,13 @@ A full read of every source file plus the running app. Phases 1–12 built a lot
 
 - Phase 7: automation lanes, and a waveform view once there's bounced/rendered audio to show.
 - Send/aux buses; drag-to-reorder effects (`moveEffect` exists, no UI).
-- Copy/paste of notes (blocks are done, 2026-09-29), multi-select, note selection + bulk edits (transpose/quantize selected notes only). The block clipboard is in-memory only.
+- Note selection, group move/resize/velocity, transpose, copy/paste/duplicate of notes are done (2026-10-15). Still open: quantize selected notes, note clipboard across blocks is in-memory only (as is the block clipboard).
 - Custom/wavetable oscillators, unison, glide, a generic mod matrix (the noise oscillator and pitch envelope are done, 2026-09-29). Neon Riptide's drums still fake noise with filter sweeps and stacked squares; they were left alone because the user likes the song.
 - Tempo-synced LFOs don't retime notes already sounding when the tempo changes (they apply from the next note). Synced delays do follow immediately.
 - Live patch edits (done 2026-09-29) don't cover attack/decay times, the pitch envelope, switching to/from noise, loading a preset, or undo/redo (those replace the patch object); they apply from the next note.
 - Arrangement markers/sections, pinch-to-zoom (playhead follow is done, 2026-09-29).
 - Theming, onboarding/first-run help, multiple named saved projects.
 - Recording latency compensation, count-in.
-- Velocity-lane access to stacked chord notes (needs note selection).
 - Compact transport/toolbars on phone widths (they wrap correctly but use a lot of vertical space).
 - Distortion effect output compensation: it adds about +19 dB on quiet signals, so adding it makes a track jump in level (found while mixing the demo song).
 - Track volume is applied *before* the track's effects (`gainNode -> effectChain -> pan`), so a compressor's automatic makeup gain cancels volume cuts. It should probably be post-effects, like a real fader.
@@ -235,7 +234,7 @@ A full read of every source file plus the running app. Phases 1–12 built a lot
 
 A full read of every source file after the move to GitHub, plus a headless Chromium pass (page load, demo loading, transport, undo, phone-width layout, and offline renders of all three demos; no audio was played). The app loads with no console errors, the transport clock tracks real time, and every demo renders without clipping (peaks 0.69–0.75). What follows is what's worth fixing or adding, most valuable first. Nothing here changes how the demos sound unless marked.
 
-**Outcome (same day):** issues 1–5, 7 and 8 below are fixed, and every item under "Simple wins" except per-block canvas previews is done; see the 2026-10-15 LOG entries. Issue 6 (autosave overwrite) and the feature list remain open.
+**Outcome (same day):** issues 1–8 below are fixed (6 via a backup slot and a Recover button), every item under "Simple wins" except per-block canvas previews is done, and feature 1 (note selection) shipped; see the 2026-10-15 LOG entries. Features 3–7 remain open.
 
 **Bugs and glaring issues (all verified):**
 

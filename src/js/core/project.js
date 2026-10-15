@@ -185,19 +185,23 @@ export function moveBlockToTrack(block, fromTrack, toTrack) {
 
 // All-or-nothing: shifting only the notes that fit would silently change the music's
 // intervals, so if any note would leave the MIDI range nothing moves and this returns false.
-export function transposeBlock(block, semitones) {
-  const outOfRange = block.notes.some((note) => {
+export function transposeNotes(notes, semitones) {
+  const outOfRange = notes.some((note) => {
     const shifted = note.note + semitones;
     return shifted < LOWEST_NOTE || shifted > HIGHEST_NOTE;
   });
-  if (outOfRange || semitones === 0) {
+  if (outOfRange || semitones === 0 || notes.length === 0) {
     return !outOfRange;
   }
-  for (const note of block.notes) {
+  for (const note of notes) {
     note.note += semitones;
   }
   notifyChanged();
   return true;
+}
+
+export function transposeBlock(block, semitones) {
+  return transposeNotes(block.notes, semitones);
 }
 
 export function addNote(block, { note, startBeat, lengthBeats = 1, velocity = 100 }) {
@@ -214,7 +218,12 @@ export function addNote(block, { note, startBeat, lengthBeats = 1, velocity = 10
 }
 
 export function removeNote(block, noteId) {
-  block.notes = block.notes.filter((note) => note.id !== noteId);
+  removeNotes(block, [noteId]);
+}
+
+export function removeNotes(block, noteIds) {
+  const ids = new Set(noteIds);
+  block.notes = block.notes.filter((note) => !ids.has(note.id));
   notifyChanged();
 }
 

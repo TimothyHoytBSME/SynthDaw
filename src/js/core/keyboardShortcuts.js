@@ -31,7 +31,9 @@ function togglePlayback() {
 // computerKeyboard.js (note input), so nothing here may claim a bare letter.
 function handlePlainKey(event, project) {
   const blockKeys = ["Delete", "Backspace", "ArrowUp", "ArrowDown"];
-  if (blockKeys.includes(event.key) && !getSelectedBlock(project)) {
+  // With the piano roll open these keys mean notes (handled by the roll when it has a
+  // selection), never the block being edited.
+  if (blockKeys.includes(event.key) && (!getSelectedBlock(project) || isEditingBlock())) {
     return false; // leave arrows (page scroll) and Backspace alone when there's nothing to act on
   }
   switch (event.key) {
@@ -43,11 +45,6 @@ function handlePlainKey(event, project) {
       return true;
     case "Delete":
     case "Backspace":
-      // With the piano roll open, Delete means notes, not the block being edited. There is no
-      // note selection yet, so the key does nothing there rather than destroying the block.
-      if (isEditingBlock()) {
-        return false;
-      }
       deleteSelectedBlock(project);
       return true;
     case "Escape":
@@ -76,7 +73,7 @@ function handleModifiedKey(event, project) {
     undo();
   } else if (key === "y") {
     redo();
-  } else if (key === "d" && getSelectedBlock(project)) {
+  } else if (key === "d" && getSelectedBlock(project) && !isEditingBlock()) {
     duplicateSelectedBlock(project);
   } else if (key === "s") {
     bus.emit("shortcut:export-json", {}); // projectControls.js downloads the project
@@ -96,6 +93,15 @@ export function initKeyboardShortcuts(project) {
   window.addEventListener("keydown", (event) => {
     if (isTypingInField() || event.altKey) {
       return;
+    }
+    // The open piano roll gets first refusal (note selection: Delete, arrows, Ctrl+A/C/X/V/D).
+    if (isEditingBlock()) {
+      const request = { key: event.key, shiftKey: event.shiftKey, ctrlKey: event.ctrlKey, metaKey: event.metaKey, handled: false };
+      bus.emit("pianoroll:key", request);
+      if (request.handled) {
+        event.preventDefault();
+        return;
+      }
     }
     const handled =
       event.ctrlKey || event.metaKey ? handleModifiedKey(event, project) : handlePlainKey(event, project);

@@ -2,13 +2,17 @@ import { bus } from "../core/eventBus.js";
 import {
   addNote,
   removeNote,
+  removeNotes,
   moveNote,
   resizeNote,
   setNotePitch,
   setNoteVelocity,
+  transposeNotes,
   LOWEST_NOTE,
   HIGHEST_NOTE,
+  SEMITONES_PER_OCTAVE,
 } from "../core/project.js";
+import { getPositionBeats } from "../core/transportController.js";
 
 // Must match the row period used by `.piano-roll-grid`/`.piano-roll-key` in main.css.
 const ROW_HEIGHT = 20;
@@ -19,6 +23,8 @@ const MIN_VELOCITY_BAR_WIDTH = 8;
 const DEFAULT_VELOCITY = 100;
 const PREVIEW_DURATION_MS = 150;
 const DEFAULT_CENTER_NOTE = 60; // C4
+// A pointer that moves less than this is a click (add a note), not a marquee drag.
+const DRAG_THRESHOLD_PX = 4;
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const SNAP_OPTIONS = [
   { label: "1 beat", value: 1 },
@@ -31,6 +37,12 @@ const ROW_COUNT = HIGHEST_NOTE - LOWEST_NOTE + 1;
 
 // Module-level so zoom/snap/new-note length persist across re-renders and between blocks.
 const settings = { pixelsPerBeat: 60, snap: 0.25, lastLength: 1 };
+// Selected note ids for the block currently open (cleared when a different block opens).
+const selection = { blockId: null, noteIds: new Set() };
+// Copied notes, relative to the earliest one's start (in-memory, like the block clipboard).
+let noteClipboard = null;
+// Unsubscribes the previous roll's keyboard handler (one live roll at a time).
+let unsubscribeKeys = null;
 // The open roll's playhead line and block, for `setPianoRollPosition` (driven by the timeline's
 // animation loop, which already knows the transport position).
 let activePlayhead = null;
@@ -80,6 +92,43 @@ function blackKeyGradient() {
   return `linear-gradient(to bottom, ${stops.join(", ")})`;
 }
 
+function selectionFor(block) {
+  if (selection.blockId !== block.id) {
+    selection.blockId = block.id;
+    selection.noteIds.clear();
+  }
+  return selection.noteIds;
+}
+
+function selectedNotes(block) {
+  const ids = selectionFor(block);
+  return block.notes.filter((note) => ids.has(note.id));
+}
+
+// Tracks pointer drags on `element`: `onMove(event, dx, dy)` after each move, `onUp(moved)` at
+// the end. `moved` is whether the pointer travelled past DRAG_THRESHOLD_PX.
+function trackDrag(element, event, { onMove, onUp }) {
+  const startX = event.clientX;
+  const startY = event.clientY;
+  let moved = false;
+  element.setPointerCapture?.(event.pointerId);
+  const handleMove = (moveEvent) => {
+    const dx = moveEvent.clientX - startX;
+    const dy = moveEvent.clientY - startY;
+    moved ||= Math.abs(dx) >= DRAG_THRESHOLD_PX || Math.abs(dy) >= DRAG_THRESHOLD_PX;
+    onMove?.(moveEvent, dx, dy, moved);
+  };
+  const handleUp = () => {
+    element.removeEventListener("pointermove", handleMove);
+    element.removeEventListener("pointerup", handleUp);
+    element.removeEventListener("pointercancel", handleUp);
+    onUp?.(moved);
+  };
+  element.addEventListener("pointermove", handleMove);
+  element.addEventListener("pointerup", handleUp);
+  element.addEventListener("pointercancel", handleUp);
+}
+
 export function renderPianoRoll(container, block, { beatsPerBar = 4 } = {}) {
   const previousScroll = container.querySelector(".piano-roll-main");
   const restoreScroll = previousScroll && { top: previousScroll.scrollTop, left: previousScroll.scrollLeft };
@@ -89,10 +138,37 @@ export function renderPianoRoll(container, block, { beatsPerBar = 4 } = {}) {
   const snap = (beat) => Math.round(beat / settings.snap) * settings.snap;
   const lastNoteEnd = Math.max(0, ...block.notes.map((note) => note.startBeat + note.lengthBeats));
   const contentBeats = Math.max(block.lengthBeats, lastNoteEnd);
+  const selectedIds = selectionFor(block);
+  // Prune ids of notes that no longer exist (deleted, undone).
+  const liveIds = new Set(block.notes.map((note) => note.id));
+  for (const id of Array.from(selectedIds)) {
+    if (!liveIds.has(id)) {
+      selectedIds.delete(id);
+    }
+  }
+  // note id -> { cell, velocityBar, label }, for in-place updates during group drags.
+  const cells = new Map();
 
   function rerender() {
     bus.emit("block:notes-changed", { blockId: block.id });
     renderPianoRoll(container, block, { beatsPerBar });
+  }
+
+  function showSelection() {
+    for (const [id, { cell }] of cells) {
+      cell.classList.toggle("piano-roll-note--selected", selectedIds.has(id));
+    }
+    hint.textContent = selectedIds.size > 0 ? SELECTION_HINT : HINT;
+  }
+
+  function select(noteIds, { add = false } = {}) {
+    if (!add) {
+      selectedIds.clear();
+    }
+    for (const id of noteIds) {
+      selectedIds.add(id);
+    }
+    showSelection();
   }
 
   // --- Toolbar ----------------------------------------------------------------------------
@@ -124,10 +200,12 @@ export function renderPianoRoll(container, block, { beatsPerBar = 4 } = {}) {
   snapSelect.addEventListener("change", () => (settings.snap = Number(snapSelect.value)));
   snapLabel.appendChild(snapSelect);
 
+  const HINT =
+    "Click to add · drag to move · drag right edge to resize · drag empty space to select · double-click or right-click to delete";
+  const SELECTION_HINT =
+    "Selection: drag to move together · ↑/↓ transpose (Shift = octave) · Delete · Ctrl+C/V/D copy, paste at playhead, duplicate · Esc";
   const hint = document.createElement("span");
   hint.className = "piano-roll-hint";
-  hint.textContent =
-    "Click to add · drag to move (any direction) · drag right edge to resize · double-click or right-click to delete";
 
   toolbar.append(zoomLabel, snapLabel, hint);
 
@@ -191,6 +269,11 @@ export function renderPianoRoll(container, block, { beatsPerBar = 4 } = {}) {
   grid.appendChild(playhead);
   activePlayhead = { element: playhead, block };
 
+  const marquee = document.createElement("div");
+  marquee.className = "piano-roll-marquee";
+  marquee.hidden = true;
+  grid.appendChild(marquee);
+
   main.append(keys, grid);
 
   // --- Velocity lane ----------------------------------------------------------------------
@@ -212,17 +295,18 @@ export function renderPianoRoll(container, block, { beatsPerBar = 4 } = {}) {
 
   // --- Coordinates ------------------------------------------------------------------------
 
+  function gridPoint(clientX, clientY) {
+    const rect = grid.getBoundingClientRect();
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  }
+
   function beatFromClientX(clientX) {
-    return Math.max(0, (clientX - grid.getBoundingClientRect().left) / ppb());
+    return Math.max(0, gridPoint(clientX, 0).x / ppb());
   }
 
   function noteFromClientY(clientY) {
-    const row = Math.floor((clientY - grid.getBoundingClientRect().top) / ROW_HEIGHT);
+    const row = Math.floor(gridPoint(0, clientY).y / ROW_HEIGHT);
     return HIGHEST_NOTE - row;
-  }
-
-  function clampStart(startBeat, lengthBeats) {
-    return Math.min(Math.max(0, block.lengthBeats - lengthBeats), Math.max(0, startBeat));
   }
 
   function applyNoteStyle(cell, note) {
@@ -233,37 +317,186 @@ export function renderPianoRoll(container, block, { beatsPerBar = 4 } = {}) {
     cell.title = `${noteLabel(note.note)} · velocity ${note.velocity}`;
   }
 
+  function refreshNoteElements(note) {
+    const entry = cells.get(note.id);
+    if (!entry) {
+      return;
+    }
+    applyNoteStyle(entry.cell, note);
+    entry.label.textContent = noteLabel(note.note);
+    entry.velocityBar.style.left = entry.cell.style.left;
+    entry.velocityBar.style.height = `${(note.velocity / 127) * 100}%`;
+    entry.velocityBar.title = `Velocity ${note.velocity}`;
+  }
+
+  // --- Group edits (the selection, or the grabbed note alone) -----------------------------
+
+  // Moves `notes` together by a snapped time delta and a row delta, keeping the group inside
+  // the block and the MIDI range: the delta is clamped by the group's extremes, so relative
+  // positions never change. `origins` holds each note's position when the drag began.
+  function moveGroup(notes, origins, deltaBeats, deltaRows) {
+    let minStart = Infinity;
+    let maxShift = Infinity;
+    let minPitch = Infinity;
+    let maxPitch = -Infinity;
+    for (const note of notes) {
+      const origin = origins.get(note.id);
+      minStart = Math.min(minStart, origin.startBeat);
+      maxShift = Math.min(maxShift, Math.max(0, block.lengthBeats - origin.lengthBeats) - origin.startBeat);
+      minPitch = Math.min(minPitch, origin.note);
+      maxPitch = Math.max(maxPitch, origin.note);
+    }
+    const shift = Math.min(Math.max(deltaBeats, -minStart), Math.max(-minStart, maxShift));
+    const rows = Math.min(Math.max(deltaRows, LOWEST_NOTE - minPitch), HIGHEST_NOTE - maxPitch);
+    for (const note of notes) {
+      const origin = origins.get(note.id);
+      moveNote(note, origin.startBeat + shift);
+      setNotePitch(note, origin.note + rows);
+      refreshNoteElements(note);
+    }
+    return rows;
+  }
+
+  function resizeGroup(notes, origins, deltaBeats) {
+    for (const note of notes) {
+      const origin = origins.get(note.id);
+      const maxLength = Math.max(settings.snap, block.lengthBeats - note.startBeat);
+      resizeNote(note, Math.min(maxLength, Math.max(settings.snap, snap(origin.lengthBeats + deltaBeats))));
+      refreshNoteElements(note);
+    }
+  }
+
+  function deleteSelected() {
+    if (selectedIds.size === 0) {
+      return false;
+    }
+    removeNotes(block, Array.from(selectedIds));
+    selectedIds.clear();
+    rerender();
+    return true;
+  }
+
+  function transposeSelected(semitones) {
+    const notes = selectedNotes(block);
+    if (notes.length === 0) {
+      return false;
+    }
+    if (transposeNotes(notes, semitones)) {
+      notes.forEach(refreshNoteElements);
+      bus.emit("block:notes-changed", { blockId: block.id });
+      previewNote(notes[0].note);
+    } else {
+      bus.emit("status:message", { text: "Can't transpose that far: some notes would leave the MIDI range." });
+    }
+    return true;
+  }
+
+  function copySelected() {
+    const notes = selectedNotes(block);
+    if (notes.length === 0) {
+      return false;
+    }
+    const firstBeat = Math.min(...notes.map((note) => note.startBeat));
+    noteClipboard = notes.map((note) => ({ ...note, startBeat: note.startBeat - firstBeat }));
+    bus.emit("status:message", { text: `${notes.length} note${notes.length === 1 ? "" : "s"} copied. Ctrl+V pastes at the playhead (or the block start).` });
+    return true;
+  }
+
+  // Adds copies of `notes` (relative starts) at `atBeat`, selects them.
+  function pasteNotes(notes, atBeat) {
+    const added = notes
+      .filter((note) => atBeat + note.startBeat < block.lengthBeats)
+      .map((note) => addNote(block, { ...note, startBeat: atBeat + note.startBeat }));
+    if (added.length === 0) {
+      bus.emit("status:message", { text: "Nothing pasted: the notes would start past the block's end." });
+      return;
+    }
+    select(added.map((note) => note.id));
+    rerender();
+  }
+
+  function pasteClipboard() {
+    if (!noteClipboard) {
+      return false;
+    }
+    const playhead = getPositionBeats() - block.startBeat;
+    const inside = playhead >= 0 && playhead < block.lengthBeats;
+    pasteNotes(noteClipboard, inside ? snap(playhead) : 0);
+    return true;
+  }
+
+  function duplicateSelected() {
+    const notes = selectedNotes(block);
+    if (notes.length === 0) {
+      return false;
+    }
+    const firstBeat = Math.min(...notes.map((note) => note.startBeat));
+    const end = Math.max(...notes.map((note) => note.startBeat + note.lengthBeats));
+    pasteNotes(notes.map((note) => ({ ...note, startBeat: note.startBeat - firstBeat })), end);
+    return true;
+  }
+
+  // Keys the timeline's shortcut layer forwards while this roll is open. Returns true if used.
+  function handleKey(request) {
+    const { key, shiftKey, ctrlKey, metaKey } = request;
+    const modified = ctrlKey || metaKey;
+    if (!modified) {
+      switch (key) {
+        case "Delete":
+        case "Backspace":
+          return deleteSelected();
+        case "ArrowUp":
+          return transposeSelected(shiftKey ? SEMITONES_PER_OCTAVE : 1);
+        case "ArrowDown":
+          return transposeSelected(shiftKey ? -SEMITONES_PER_OCTAVE : -1);
+        case "Escape":
+          if (selectedIds.size === 0) {
+            return false;
+          }
+          select([]);
+          return true;
+        default:
+          return false;
+      }
+    }
+    switch (key.toLowerCase()) {
+      case "a":
+        select(block.notes.map((note) => note.id));
+        return true;
+      case "c":
+        return copySelected();
+      case "x":
+        return copySelected() && deleteSelected();
+      case "v":
+        return pasteClipboard();
+      case "d":
+        return duplicateSelected();
+      default:
+        return false;
+    }
+  }
+
   // --- Notes ------------------------------------------------------------------------------
 
-  function renderVelocityBar(note, cell) {
+  function renderVelocityBar(note) {
     const bar = document.createElement("div");
     bar.className = "piano-roll-velocity-bar";
     bar.style.left = `${note.startBeat * ppb()}px`;
     bar.style.width = `${Math.max(MIN_VELOCITY_BAR_WIDTH, Math.min(note.lengthBeats * ppb(), 24))}px`;
-    const show = () => {
-      bar.style.height = `${(note.velocity / 127) * 100}%`;
-      bar.title = `Velocity ${note.velocity}`;
-      applyNoteStyle(cell, note);
-    };
-    show();
     bar.addEventListener("pointerdown", (event) => {
       event.preventDefault();
-      bar.setPointerCapture?.(event.pointerId);
+      // Dragging a selected note's bar sets every selected note's velocity.
+      const targets = selectedIds.has(note.id) ? selectedNotes(block) : [note];
       const setFromY = (clientY) => {
         const rect = velocityLane.getBoundingClientRect();
-        setNoteVelocity(note, ((rect.bottom - clientY) / rect.height) * 127);
-        show();
+        const velocity = ((rect.bottom - clientY) / rect.height) * 127;
+        for (const target of targets) {
+          setNoteVelocity(target, velocity);
+          refreshNoteElements(target);
+        }
       };
       setFromY(event.clientY);
-      const onMove = (moveEvent) => setFromY(moveEvent.clientY);
-      const onUp = () => {
-        bar.removeEventListener("pointermove", onMove);
-        bar.removeEventListener("pointerup", onUp);
-        bar.removeEventListener("pointercancel", onUp);
-      };
-      bar.addEventListener("pointermove", onMove);
-      bar.addEventListener("pointerup", onUp);
-      bar.addEventListener("pointercancel", onUp);
+      trackDrag(bar, event, { onMove: (moveEvent) => setFromY(moveEvent.clientY) });
     });
     velocityLane.appendChild(bar);
     return bar;
@@ -273,21 +506,22 @@ export function renderPianoRoll(container, block, { beatsPerBar = 4 } = {}) {
     const cell = document.createElement("div");
     cell.className = "piano-roll-note";
     cell.style.height = `${ROW_HEIGHT - 2}px`;
-    applyNoteStyle(cell, note);
 
     const label = document.createElement("span");
     label.className = "piano-roll-note-label";
-    label.textContent = noteLabel(note.note);
     const resizeHandle = document.createElement("div");
     resizeHandle.className = "piano-roll-note-resize";
     cell.append(label, resizeHandle);
 
-    const velocityBar = renderVelocityBar(note, cell);
+    const velocityBar = renderVelocityBar(note);
+    cells.set(note.id, { cell, velocityBar, label });
+    refreshNoteElements(note);
 
     const remove = (event) => {
       event.preventDefault();
       event.stopPropagation();
       removeNote(block, note.id);
+      selectedIds.delete(note.id);
       rerender();
     };
     cell.addEventListener("dblclick", remove);
@@ -298,60 +532,107 @@ export function renderPianoRoll(container, block, { beatsPerBar = 4 } = {}) {
         return;
       }
       event.stopPropagation();
-      const isResize = event.target === resizeHandle;
-      const startX = event.clientX;
-      const startY = event.clientY;
-      const startBeat = note.startBeat;
-      const startLength = note.lengthBeats;
-      const startPitch = note.note;
-      cell.setPointerCapture?.(event.pointerId);
-
-      function onMove(moveEvent) {
-        const deltaBeats = (moveEvent.clientX - startX) / ppb();
-        if (isResize) {
-          const maxLength = Math.max(settings.snap, block.lengthBeats - note.startBeat);
-          resizeNote(note, Math.min(maxLength, Math.max(settings.snap, snap(startLength + deltaBeats))));
-          settings.lastLength = note.lengthBeats;
+      const addToSelection = event.shiftKey || event.ctrlKey || event.metaKey;
+      const wasSelected = selectedIds.has(note.id);
+      if (addToSelection) {
+        if (wasSelected) {
+          selectedIds.delete(note.id);
         } else {
-          moveNote(note, clampStart(snap(startBeat + deltaBeats), note.lengthBeats));
-          const rowDelta = Math.round((moveEvent.clientY - startY) / ROW_HEIGHT);
-          const previousPitch = note.note;
-          setNotePitch(note, startPitch - rowDelta);
-          if (note.note !== previousPitch) {
-            label.textContent = noteLabel(note.note);
+          selectedIds.add(note.id);
+        }
+        showSelection();
+      } else if (!wasSelected) {
+        select([note.id]);
+      }
+      if (!selectedIds.has(note.id)) {
+        return; // toggled off: nothing to drag
+      }
+
+      const isResize = event.target === resizeHandle;
+      const group = selectedNotes(block);
+      const origins = new Map(group.map((member) => [member.id, { ...member }]));
+      const grabbed = origins.get(note.id);
+      let lastRows = 0;
+
+      trackDrag(cell, event, {
+        onMove(moveEvent, dx, dy) {
+          const rawDelta = dx / ppb();
+          if (isResize) {
+            resizeGroup(group, origins, rawDelta);
+            settings.lastLength = note.lengthBeats;
+            return;
+          }
+          const deltaBeats = snap(grabbed.startBeat + rawDelta) - grabbed.startBeat;
+          const rows = moveGroup(group, origins, deltaBeats, -Math.round(dy / ROW_HEIGHT));
+          if (rows !== lastRows) {
+            lastRows = rows;
             previewNote(note.note);
           }
-        }
-        applyNoteStyle(cell, note);
-        velocityBar.style.left = cell.style.left;
-      }
-      function onUp() {
-        cell.removeEventListener("pointermove", onMove);
-        cell.removeEventListener("pointerup", onUp);
-        cell.removeEventListener("pointercancel", onUp);
-        bus.emit("block:notes-changed", { blockId: block.id });
-      }
-      cell.addEventListener("pointermove", onMove);
-      cell.addEventListener("pointerup", onUp);
-      cell.addEventListener("pointercancel", onUp);
+        },
+        onUp(moved) {
+          if (!moved && !addToSelection && wasSelected && selectedIds.size > 1) {
+            select([note.id]); // a plain click on one of several selected notes picks just it
+          }
+          if (moved) {
+            bus.emit("block:notes-changed", { blockId: block.id });
+          }
+        },
+      });
     });
 
     grid.appendChild(cell);
   }
 
-  grid.addEventListener("click", (event) => {
-    if (event.target !== grid) {
+  // Empty grid: a click adds a note; a drag selects every note the rectangle touches.
+  grid.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || event.target !== grid) {
       return;
     }
-    const startBeat = Math.floor(beatFromClientX(event.clientX) / settings.snap) * settings.snap;
-    const note = noteFromClientY(event.clientY);
-    if (note < LOWEST_NOTE || note > HIGHEST_NOTE || startBeat >= block.lengthBeats) {
-      return;
-    }
-    const lengthBeats = Math.min(settings.lastLength, block.lengthBeats - startBeat);
-    addNote(block, { note, startBeat, lengthBeats, velocity: DEFAULT_VELOCITY });
-    previewNote(note);
-    rerender();
+    const origin = gridPoint(event.clientX, event.clientY);
+    const addToSelection = event.shiftKey || event.ctrlKey || event.metaKey;
+    const marqueeRect = (point) => ({
+      left: Math.min(origin.x, point.x),
+      top: Math.min(origin.y, point.y),
+      right: Math.max(origin.x, point.x),
+      bottom: Math.max(origin.y, point.y),
+    });
+    const notesIn = (rect) =>
+      block.notes.filter((note) => {
+        const left = note.startBeat * ppb();
+        const right = left + note.lengthBeats * ppb();
+        const top = (HIGHEST_NOTE - note.note) * ROW_HEIGHT;
+        return left < rect.right && right > rect.left && top < rect.bottom && top + ROW_HEIGHT > rect.top;
+      });
+    trackDrag(grid, event, {
+      onMove(moveEvent, dx, dy, moved) {
+        if (!moved) {
+          return;
+        }
+        const rect = marqueeRect(gridPoint(moveEvent.clientX, moveEvent.clientY));
+        marquee.hidden = false;
+        marquee.style.left = `${rect.left}px`;
+        marquee.style.top = `${rect.top}px`;
+        marquee.style.width = `${rect.right - rect.left}px`;
+        marquee.style.height = `${rect.bottom - rect.top}px`;
+        select(notesIn(rect).map((note) => note.id), { add: addToSelection });
+      },
+      onUp(moved) {
+        marquee.hidden = true;
+        if (moved) {
+          return;
+        }
+        const startBeat = Math.floor(beatFromClientX(event.clientX) / settings.snap) * settings.snap;
+        const pitch = noteFromClientY(event.clientY);
+        if (pitch < LOWEST_NOTE || pitch > HIGHEST_NOTE || startBeat >= block.lengthBeats) {
+          return;
+        }
+        const lengthBeats = Math.min(settings.lastLength, block.lengthBeats - startBeat);
+        const added = addNote(block, { note: pitch, startBeat, lengthBeats, velocity: DEFAULT_VELOCITY });
+        select([added.id]);
+        previewNote(pitch);
+        rerender();
+      },
+    });
   });
   grid.addEventListener("contextmenu", (event) => {
     if (event.target === grid) {
@@ -362,11 +643,26 @@ export function renderPianoRoll(container, block, { beatsPerBar = 4 } = {}) {
   for (const note of block.notes) {
     renderNoteCell(note);
   }
+  showSelection();
 
   const wrapper = document.createElement("div");
   wrapper.className = "piano-roll";
   wrapper.append(toolbar, main, velocityRow);
   container.appendChild(wrapper);
+
+  // Keyboard: the shortcut layer (core/keyboardShortcuts.js) forwards keys here while a block is
+  // being edited. One live handler per roll; re-rendering swaps it.
+  unsubscribeKeys?.();
+  unsubscribeKeys = bus.on("pianoroll:key", (request) => {
+    // A handled key may re-render (and so re-subscribe) during this very dispatch; the new
+    // listener then sees the same request and must not act on it again.
+    if (request.handled || !wrapper.isConnected) {
+      return;
+    }
+    if (handleKey(request)) {
+      request.handled = true;
+    }
+  });
 
   // Re-rendering into the same container (note added/removed, zoom) keeps the scroll position;
   // a fresh container (opening a block, or the timeline refreshing after a transpose) centres

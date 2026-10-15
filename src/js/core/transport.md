@@ -3,7 +3,7 @@
 Audio-accurate play/pause/stop/seek clock, independent of any UI. `getPositionBeats()` is computed on demand from `audioContext.currentTime` (it never drifts).
 
 `createTransport(audioContext, { onSchedule, onCancel })`:
-- `onSchedule(windowStart, windowEnd, beatToContextTime)` is a lookahead scheduler hook. A `setTimeout` poll every 25ms hands out consecutive, non-overlapping beat windows about 100ms ahead of real time. The consumer ([transportController.js](./transportController.md)) decides what falls in each window.
+- `onSchedule(windowStart, windowEnd, beatToContextTime)` is a lookahead scheduler hook. A poll every 25ms, driven by the worker-based [ticker.js](./ticker.md) so it keeps running in a hidden tab, hands out consecutive, non-overlapping beat windows about 100ms ahead of real time (1 s while the tab is hidden, since the page's own callbacks are deprioritized there; a `visibilitychange` polls at once so the horizon switches without a gap). The consumer ([transportController.js](./transportController.md)) decides what falls in each window.
 - `onCancel()` fires on `pause()`, `stop()` and a `seek()` while running, since everything already scheduled ahead is now wrong.
 
 **`play()` waits for a running context.** If the `AudioContext` is suspended, it calls `resume()` and anchors the clock only once that resolves. Anchoring to a suspended context's frozen `currentTime` would leave the transport "playing" against a clock that never moves. While waiting, `isRunning()` is true, so a second Space press toggles it off, and `isWaitingForAudio()` is true. `pause()`/`stop()` cancel the pending start. It emits `transport:waiting-for-audio` when it has to wait.

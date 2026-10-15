@@ -26,6 +26,7 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | [src/js/midi/midiInput.md](../src/js/midi/midiInput.md) | Companion doc for `src/js/midi/midiInput.js`, the Web MIDI device/message layer. |
 | [src/js/ui/midiStatus.md](../src/js/ui/midiStatus.md) | Companion doc for `src/js/ui/midiStatus.js`, the MIDI connection-status readout. |
 | [src/js/core/project.md](../src/js/core/project.md) | Companion doc for `src/js/core/project.js`, the Project/Track/Block data model. |
+| [src/js/core/ticker.md](../src/js/core/ticker.md) | Companion doc for `src/js/core/ticker.js`, the worker-based interval that survives background-tab timer throttling. |
 | [src/js/core/transport.md](../src/js/core/transport.md) | Companion doc for `src/js/core/transport.js`, the audio-accurate play/pause/stop clock. |
 | [src/js/core/transportController.md](../src/js/core/transportController.md) | Companion doc for `src/js/core/transportController.js`, wires the transport to the metronome + note sequencer. |
 | [src/js/audio/click.md](../src/js/audio/click.md) | Companion doc for `src/js/audio/click.js`, the metronome click sound. |

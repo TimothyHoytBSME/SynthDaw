@@ -1,7 +1,15 @@
 import { bus } from "./eventBus.js";
+import { createTicker } from "./ticker.js";
 
 const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_SECONDS = 0.1;
+// In a hidden tab the ticker (a worker) keeps running, but the page itself gets less time and
+// its own callbacks can be delayed, so audio is scheduled further ahead there.
+const HIDDEN_SCHEDULE_AHEAD_SECONDS = 1;
+
+function scheduleAheadSeconds() {
+  return typeof document !== "undefined" && document.hidden ? HIDDEN_SCHEDULE_AHEAD_SECONDS : SCHEDULE_AHEAD_SECONDS;
+}
 
 // `onSchedule(windowStart, windowEnd, beatToContextTime)` is called every poll with the next
 // window of beats to schedule; `onCancel()` is called whenever audio already scheduled ahead
@@ -12,7 +20,7 @@ export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
   let startContextTime = 0;
   let startBeat = 0;
   let scheduledUpToBeat = 0;
-  let schedulerTimer = null;
+  const ticker = createTicker(LOOKAHEAD_MS, () => poll());
   // Set while play() waits for a suspended AudioContext to actually start running.
   let pendingStart = null;
   let loop = { enabled: false, startBeat: 0, endBeat: 8 };
@@ -83,7 +91,7 @@ export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
       scheduledUpToBeat = loop.startBeat;
     }
 
-    const horizonBeat = rawPositionBeats() + (SCHEDULE_AHEAD_SECONDS * tempo) / 60;
+    const horizonBeat = rawPositionBeats() + (scheduleAheadSeconds() * tempo) / 60;
     const windowStart = scheduledUpToBeat;
     // Cap each tick's window at the loop boundary rather than splitting/wrapping past it in
     // one call: the remainder beyond loop.endBeat gets scheduled on a later tick, once
@@ -94,8 +102,16 @@ export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
 
     onSchedule?.(windowStart, windowEnd, beatToContextTime);
     scheduledUpToBeat = windowEnd;
+  }
 
-    schedulerTimer = setTimeout(poll, LOOKAHEAD_MS);
+  // Coming back to a visible tab, or leaving it: top up the schedule right away with the new
+  // horizon instead of waiting for the next tick.
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", () => {
+      if (running) {
+        poll();
+      }
+    });
   }
 
   function start() {
@@ -108,6 +124,7 @@ export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
     startContextTime = audioContext.currentTime;
     scheduledUpToBeat = startBeat;
     poll();
+    ticker.start();
     bus.emit("transport:play", {});
   }
 
@@ -144,14 +161,14 @@ export function createTransport(audioContext, { onSchedule, onCancel } = {}) {
       }
       startBeat = getPositionBeats();
       running = false;
-      clearTimeout(schedulerTimer);
+      ticker.stop();
       onCancel?.();
       bus.emit("transport:pause", {});
     },
     stop() {
       cancelPendingStart();
       running = false;
-      clearTimeout(schedulerTimer);
+      ticker.stop();
       startBeat = 0;
       onCancel?.();
       bus.emit("transport:stop", {});

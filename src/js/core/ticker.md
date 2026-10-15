@@ -1,0 +1,3 @@
+# ticker.js
+
+`createTicker(intervalMs, onTick)` returns `{ start, stop, usesWorker }`: a steady interval that keeps firing while the tab is hidden. Chrome throttles a hidden page's timers to once a second, and to once a minute after five minutes, which starved the transport's 25 ms lookahead scheduler and made playback stutter or stall when the user switched tabs (reported 2026-10-15). Timers inside a Web Worker aren't throttled that way, so the interval runs in a tiny inline worker (built from a blob URL, no extra file) that posts a message per tick. If workers or blob URLs are unavailable, it falls back to a `setTimeout` loop on the page. Used by [transport.js](./transport.md); only ticks between `start()` and `stop()` reach `onTick`.

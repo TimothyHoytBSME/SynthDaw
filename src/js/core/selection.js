@@ -3,6 +3,8 @@ import { bus } from "./eventBus.js";
 // UI selection state (not persisted, not undoable). Stored as ids rather than object
 // references so it survives undo/redo/import, which replace the project's track/block objects.
 const state = { trackId: null, blockId: null };
+// The block open in the piano roll (not part of the selection, so it isn't broadcast).
+let editingBlockId = null;
 
 function notify() {
   bus.emit("selection:changed", { ...state });
@@ -61,4 +63,13 @@ export function clearBlockSelection() {
 
 export function getSelection() {
   return { ...state };
+}
+
+export function setEditingBlock(blockId) {
+  editingBlockId = blockId;
+}
+
+// True while the piano roll is open, so block-level shortcuts (Delete) stand down.
+export function isEditingBlock() {
+  return editingBlockId !== null;
 }

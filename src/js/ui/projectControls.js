@@ -76,9 +76,11 @@ export function renderProjectControls(container, project, onReplaced) {
   const exportButton = document.createElement("button");
   exportButton.type = "button";
   exportButton.textContent = "Export JSON";
-  exportButton.addEventListener("click", () => {
+  const exportJson = () => {
     downloadBlob(new Blob([serializeProject(project)], { type: "application/json" }), DOWNLOAD_FILENAME);
-  });
+  };
+  exportButton.addEventListener("click", exportJson);
+  bus.on("shortcut:export-json", exportJson);
 
   const exportWavButton = document.createElement("button");
   exportWavButton.type = "button";

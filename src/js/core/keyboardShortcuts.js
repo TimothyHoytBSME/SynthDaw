@@ -1,6 +1,7 @@
 import { getTransport } from "./transportController.js";
 import { undo, redo } from "./history.js";
-import { clearBlockSelection, getSelectedBlock } from "./selection.js";
+import { bus } from "./eventBus.js";
+import { clearBlockSelection, getSelectedBlock, isEditingBlock } from "./selection.js";
 import {
   copySelectedBlock,
   cutSelectedBlock,
@@ -37,8 +38,16 @@ function handlePlainKey(event, project) {
     case " ":
       togglePlayback();
       return true;
+    case "Home":
+      getTransport().seek(0);
+      return true;
     case "Delete":
     case "Backspace":
+      // With the piano roll open, Delete means notes, not the block being edited. There is no
+      // note selection yet, so the key does nothing there rather than destroying the block.
+      if (isEditingBlock()) {
+        return false;
+      }
       deleteSelectedBlock(project);
       return true;
     case "Escape":
@@ -67,8 +76,10 @@ function handleModifiedKey(event, project) {
     undo();
   } else if (key === "y") {
     redo();
-  } else if (key === "d") {
+  } else if (key === "d" && getSelectedBlock(project)) {
     duplicateSelectedBlock(project);
+  } else if (key === "s") {
+    bus.emit("shortcut:export-json", {}); // projectControls.js downloads the project
   } else if (key === "c" && getSelectedBlock(project)) {
     copySelectedBlock(project);
   } else if (key === "x" && getSelectedBlock(project)) {

@@ -9,7 +9,7 @@ import {
 } from "../core/project.js";
 import { getTransport, getPositionBeats, isTransportRunning } from "../core/transportController.js";
 import { bus } from "../core/eventBus.js";
-import { getSelectedTrack, getSelection, selectTrack, selectBlock, findBlock } from "../core/selection.js";
+import { getSelectedTrack, getSelection, selectTrack, selectBlock, findBlock, setEditingBlock } from "../core/selection.js";
 import { renderPianoRoll } from "./pianoRoll.js";
 import { createTransportBar, checkboxField } from "./transportBar.js";
 import { createBlockToolbar } from "./blockToolbar.js";
@@ -156,6 +156,7 @@ export function renderTimeline(container, project) {
 
   function closePianoRoll() {
     pianoRollBlockId = null;
+    setEditingBlock(null);
     pianoRollPanel.hidden = true;
     pianoRollPanel.innerHTML = "";
   }
@@ -167,6 +168,7 @@ export function renderTimeline(container, project) {
 
   function showPianoRoll(track, block) {
     pianoRollBlockId = block.id;
+    setEditingBlock(block.id);
     pianoRollPanel.innerHTML = "";
     pianoRollPanel.hidden = false;
 

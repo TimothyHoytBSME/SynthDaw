@@ -13,6 +13,9 @@ import {
 let transport = null;
 let metronomeEnabled = true;
 let project = null;
+// playableNotes(project) sorted by start, rebuilt lazily after each project change, so each
+// 25 ms scheduler tick does a binary search instead of walking every note in the song.
+let sortedNotes = null;
 
 function beatsToSeconds(beats, tempo) {
   return beats * (60 / tempo);
@@ -30,23 +33,48 @@ function scheduleMetronome(windowStart, windowEnd, beatToContextTime) {
   }
 }
 
+function getSortedNotes() {
+  if (!sortedNotes) {
+    sortedNotes = Array.from(playableNotes(project)).sort((a, b) => a.startBeat - b.startBeat);
+  }
+  return sortedNotes;
+}
+
+// Index of the first note starting at or after `beat`.
+function firstNoteIndexFrom(notes, beat) {
+  let low = 0;
+  let high = notes.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (notes[middle].startBeat < beat) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low;
+}
+
 function scheduleProjectNotes(windowStart, windowEnd, beatToContextTime) {
   if (!project) {
     return;
   }
   const mixer = getMixer();
   const tempo = transport.getTempo();
-  for (const playable of playableNotes(project)) {
-    if (playable.startBeat >= windowStart && playable.startBeat < windowEnd) {
-      scheduleNote(
-        playable.note,
-        playable.velocity,
-        beatToContextTime(playable.startBeat),
-        beatsToSeconds(playable.lengthBeats, tempo),
-        playable.track.patch,
-        mixer.getTrackBus(playable.track.id).gainNode,
-      );
+  const notes = getSortedNotes();
+  for (let index = firstNoteIndexFrom(notes, windowStart); index < notes.length; index += 1) {
+    const playable = notes[index];
+    if (playable.startBeat >= windowEnd) {
+      break;
     }
+    scheduleNote(
+      playable.note,
+      playable.velocity,
+      beatToContextTime(playable.startBeat),
+      beatsToSeconds(playable.lengthBeats, tempo),
+      playable.track.patch,
+      mixer.getTrackBus(playable.track.id).gainNode,
+    );
   }
 }
 
@@ -62,6 +90,7 @@ function loopsEqual(a, b) {
 // The transport follows the project, same as the mixer does in audioEngine.js: tempo and loop
 // are read from the model after every change rather than pushed in by UI code.
 function syncFromProject() {
+  sortedNotes = null;
   if (!project || !transport) {
     return; // getTransport() syncs as soon as the transport exists
   }

@@ -997,6 +997,37 @@ main {
 }
 
 /* Touch-only devices have no computer keyboard to play notes with. */
+/* Narrow screens: the header took 334px of an 812px phone before the transport appeared. */
+@media (max-width: 600px) {
+  .app-header {
+    padding: 0.6rem 1rem;
+  }
+
+  .app-header h1 {
+    font-size: 1.2rem;
+  }
+
+  .app-subtitle,
+  #keyboard-status {
+    display: none;
+  }
+
+  .project-controls {
+    gap: 0.35rem;
+  }
+
+  .project-controls button,
+  .project-controls .demo-select {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.7rem;
+    min-height: 36px;
+  }
+
+  .transport-bar {
+    gap: 0.4rem 0.5rem;
+  }
+}
+
 @media (hover: none) and (pointer: coarse) {
   #keyboard-status {
     display: none;

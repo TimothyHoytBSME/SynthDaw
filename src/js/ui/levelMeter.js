@@ -81,9 +81,14 @@ export function createLevelMeter() {
     }
   }
 
+  let drewIdle = false;
   function draw(now) {
     frame = requestAnimationFrame(draw);
     const analysers = getMasterAnalysers();
+    if (!analysers && drewIdle) {
+      return; // nothing to meter yet; the idle face is already on screen
+    }
+    drewIdle = !analysers;
     context2d.clearRect(0, 0, WIDTH, height);
     context2d.fillStyle = "#101216";
     context2d.fillRect(0, 0, WIDTH, height);

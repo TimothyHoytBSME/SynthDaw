@@ -524,10 +524,16 @@ export function renderTimeline(container, project) {
     renderTracks();
   });
 
+  // Idle frames (paused, stopped) do nothing: the DOM is only touched when the position moved.
   let animationFrame = 0;
+  let lastSyncedBeat = null;
   function updatePlayheadLoop() {
-    syncPlayhead();
-    followPlayhead();
+    const beat = getPositionBeats();
+    if (beat !== lastSyncedBeat) {
+      lastSyncedBeat = beat;
+      syncPlayhead();
+      followPlayhead();
+    }
     animationFrame = requestAnimationFrame(updatePlayheadLoop);
   }
 

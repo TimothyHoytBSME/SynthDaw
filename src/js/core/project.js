@@ -344,7 +344,13 @@ export function parseProject(json) {
 // Mutates `target` in place to match `source`'s data, so every module holding a reference to
 // the original project object (timeline, mixer, transportController, ...) sees the new
 // content without needing to be handed a new object — see project.md for why this matters.
-export function replaceProjectContents(target, source) {
+// `backup` is true for user-driven replacements (New, Import, Load Demo, Recover): persistence.js
+// then saves the outgoing project to a backup slot first, so a demo load can't lose work. Undo
+// and redo pass false, since their restores already have the other state on their stacks.
+export function replaceProjectContents(target, source, { backup = true } = {}) {
+  if (backup) {
+    bus.emit("project:replacing", { outgoing: JSON.parse(JSON.stringify(target)) });
+  }
   const cloned = JSON.parse(JSON.stringify(source));
   target.tempo = cloned.tempo;
   target.timeSignature = cloned.timeSignature;

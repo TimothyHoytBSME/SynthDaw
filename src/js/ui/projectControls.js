@@ -6,6 +6,7 @@ import {
   createProject,
   addTrack,
 } from "../core/project.js";
+import { loadProject, BACKUP_KEY } from "../core/persistence.js";
 import { renderProjectToBuffer } from "../audio/exportRender.js";
 import { audioBufferToWavBlob } from "../audio/wavEncoder.js";
 import { undo, redo, canUndo, canRedo } from "../core/history.js";
@@ -72,6 +73,30 @@ export function renderProjectControls(container, project, onReplaced) {
     replaceProjectContents(project, demo.create());
     onReplaced();
   });
+
+  // The project that New / Import / Load Demo replaced. Hidden until a backup exists; recovering
+  // backs up the current project in turn, so it's a swap, not a one-way trip.
+  const recoverButton = document.createElement("button");
+  recoverButton.type = "button";
+  recoverButton.textContent = "↩ Recover previous";
+  recoverButton.title = "Bring back the project that was replaced by New Project, Import or Load Demo";
+  recoverButton.hidden = true;
+  recoverButton.addEventListener("click", async () => {
+    const backup = await loadProject(BACKUP_KEY).catch(() => null);
+    if (!backup) {
+      window.alert("There is no previous project to recover.");
+      return;
+    }
+    if (!window.confirm("Recover the previous project? The current one becomes the backup.")) {
+      return;
+    }
+    replaceProjectContents(project, backup);
+    onReplaced();
+  });
+  bus.on("project:backup-saved", () => (recoverButton.hidden = false));
+  loadProject(BACKUP_KEY)
+    .then((backup) => (recoverButton.hidden = !backup))
+    .catch(() => {});
 
   const exportButton = document.createElement("button");
   exportButton.type = "button";
@@ -144,6 +169,7 @@ export function renderProjectControls(container, project, onReplaced) {
     exportWavButton,
     importButton,
     importInput,
+    recoverButton,
     status,
   );
 }

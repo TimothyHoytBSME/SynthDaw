@@ -4,6 +4,7 @@ const DB_NAME = "synthdaw";
 const DB_VERSION = 1;
 const STORE_NAME = "projects";
 const AUTOSAVE_KEY = "autosave";
+export const BACKUP_KEY = "backup";
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
 function openDatabase() {
@@ -42,6 +43,13 @@ export async function loadProject(key = AUTOSAVE_KEY) {
 let debounceTimer = null;
 
 export function initAutosave(getProject) {
+  // The project being replaced wholesale (New, Import, Load Demo) goes to the backup slot
+  // before the autosave slot is overwritten by its replacement.
+  bus.on("project:replacing", ({ outgoing }) => {
+    saveProject(outgoing, BACKUP_KEY)
+      .then(() => bus.emit("project:backup-saved", {}))
+      .catch(() => {});
+  });
   bus.on("project:changed", () => {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {

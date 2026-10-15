@@ -65,7 +65,7 @@ export function initHistory(theProject, restoreCallback) {
 
 function restore(snapshot) {
   isRestoring = true;
-  replaceProjectContents(project, snapshot);
+  replaceProjectContents(project, snapshot, { backup: false });
   isRestoring = false;
   lastSnapshot = clone(project);
   clearTimeout(debounceTimer);

@@ -1,12 +1,28 @@
 import { createEffectChain } from "./effectChain.js";
 
-function setParamIfChanged(param, value) {
-  if (param.value !== value) {
-    param.value = value;
-  }
+// Volume, pan and mute/solo changes ramp over this long instead of stepping, so they don't click.
+const GAIN_SMOOTHING_SECONDS = 0.01;
+
+// Remembers what was last applied to each param. The first value is set directly, so new
+// buses and offline renders start exactly on it; later changes are short ramps.
+function createParamSetter(audioContext) {
+  const applied = new WeakMap();
+  return (param, value) => {
+    const previous = applied.get(param);
+    if (previous === value) {
+      return;
+    }
+    applied.set(param, value);
+    if (previous === undefined) {
+      param.value = value;
+    } else {
+      param.setTargetAtTime(value, audioContext.currentTime, GAIN_SMOOTHING_SECONDS);
+    }
+  };
 }
 
 export function createMixer(audioContext, masterGain) {
+  const setParamIfChanged = createParamSetter(audioContext);
   // The final node before the speakers, exposed so the live engine can meter it.
   const masterOutput = audioContext.createGain();
   masterOutput.connect(audioContext.destination);

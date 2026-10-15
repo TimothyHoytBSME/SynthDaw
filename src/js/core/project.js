@@ -174,6 +174,17 @@ export function duplicateBlock(track, block) {
   return copyBlock(track, block, block.startBeat + block.lengthBeats);
 }
 
+export function moveTrack(project, trackId, newIndex) {
+  const index = project.tracks.findIndex((track) => track.id === trackId);
+  const target = Math.min(project.tracks.length - 1, Math.max(0, newIndex));
+  if (index === -1 || index === target) {
+    return;
+  }
+  const [track] = project.tracks.splice(index, 1);
+  project.tracks.splice(target, 0, track);
+  notifyChanged();
+}
+
 export function moveBlockToTrack(block, fromTrack, toTrack) {
   if (fromTrack === toTrack) {
     return;

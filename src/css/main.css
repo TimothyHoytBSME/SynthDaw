@@ -197,6 +197,16 @@ main {
   border-bottom: 1px solid #23262d;
 }
 
+.timeline-row--dragging {
+  position: relative;
+  z-index: 5;
+  opacity: 0.85;
+}
+
+.timeline-track-header {
+  touch-action: none;
+}
+
 .timeline-track-header {
   position: sticky;
   left: 0;

@@ -9,6 +9,7 @@ import {
   moveBlock,
   resizeBlock,
   moveBlockToTrack,
+  moveTrack,
 } from "../core/project.js";
 import { getTransport, getPositionBeats, isTransportRunning } from "../core/transportController.js";
 import { bus } from "../core/eventBus.js";
@@ -401,8 +402,39 @@ export function renderTimeline(container, project) {
     const header = document.createElement("div");
     header.className = "timeline-track-header";
     header.dataset.trackId = track.id;
-    header.title = "Click to select (live input plays this track) · double-click the name to rename";
+    header.title = "Click to select (live input plays this track) · double-click the name to rename · drag up/down to reorder";
     header.addEventListener("click", () => selectTrack(track.id));
+    // Drag the header up or down to reorder tracks: previewed with a translateY, applied on
+    // release. Buttons and inputs inside the header keep their own pointer behaviour.
+    header.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0 || event.target !== header && event.target !== nameSpan) {
+        return;
+      }
+      const startY = event.clientY;
+      let targetIndex = trackIndex;
+      header.setPointerCapture(event.pointerId);
+      const onMove = (moveEvent) => {
+        const rowDelta = Math.round((moveEvent.clientY - startY) / view.trackHeight);
+        targetIndex = Math.min(project.tracks.length - 1, Math.max(0, trackIndex + rowDelta));
+        row.style.transform = `translateY(${(targetIndex - trackIndex) * view.trackHeight}px)`;
+        row.classList.toggle("timeline-row--dragging", targetIndex !== trackIndex);
+      };
+      const onUp = () => {
+        header.removeEventListener("pointermove", onMove);
+        header.removeEventListener("pointerup", onUp);
+        header.removeEventListener("pointercancel", onUp);
+        row.style.transform = "";
+        row.classList.remove("timeline-row--dragging");
+        if (targetIndex !== trackIndex) {
+          moveTrack(project, track.id, targetIndex);
+          renderTracks();
+          bus.emit("project:tracks-changed", {});
+        }
+      };
+      header.addEventListener("pointermove", onMove);
+      header.addEventListener("pointerup", onUp);
+      header.addEventListener("pointercancel", onUp);
+    });
 
     const colorInput = document.createElement("input");
     colorInput.type = "color";

@@ -5,6 +5,7 @@ A browser-based Digital Audio Workstation focused on from-scratch synthesis and 
 - Full project spec and agent operating rules: [.agents/CLAUDE.md](.agents/CLAUDE.md)
 - Development roadmap: [.agents/PLAN.md](.agents/PLAN.md)
 - Notable-action history: [.agents/LOG.md](.agents/LOG.md)
+- Durable agent memory: [.agents/MEMORY.md](.agents/MEMORY.md)
 - Document index: [docs/INDEX.md](docs/INDEX.md)
 
 ## Stack

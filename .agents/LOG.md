@@ -264,3 +264,8 @@ Chronological history of notable actions taken by any agent in this project. App
 - Balance: K-weighted momentary max per solo track, relative to the kick: snare −4.8, bass −3.6, arp −8.6, pads/zap about −9.5, hats −12 to −14. The master was trimmed to 0.42 to match Riptide's loudness; mix peaks ≤0.73. Render load with all notes scheduled up front ≤0.47× real time. The snare body moved from E to A after spotting E's clash with the F chord.
 - **Not listened to:** needs the user's ear.
 - Commit(s): becb5b5
+
+### 2026-10-15 — Moved to GitHub; agent memory stored in the repo
+- Agent/Model: Claude Opus 5.5
+- What: Copied the local Claude Code auto-memory (on the Windows machine only) into `.agents/MEMORY.md`, and added a root `CLAUDE.md` that imports `.agents/CLAUDE.md` and `.agents/MEMORY.md`. Claude Code only auto-loads root-level instructions, so without that file cloud sessions wouldn't see the project rules. Pushed `master` to https://github.com/TimothyHoytBSME/SynthDaw, which was empty, using the user's local git credentials.
+- Commit(s): see the commit that adds `.agents/MEMORY.md`

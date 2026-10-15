@@ -5,9 +5,11 @@ Every markdown file in the project, one line each. Update this whenever a doc is
 | File | Description |
 |---|---|
 | [README.md](../README.md) | Project overview, stack, and links to the other docs. |
+| [CLAUDE.md](../CLAUDE.md) | Auto-loaded agent entry point; imports .agents/CLAUDE.md and .agents/MEMORY.md. |
 | [.agents/CLAUDE.md](../.agents/CLAUDE.md) | Full project spec and the operating rules/qualities all agents follow. |
 | [.agents/PLAN.md](../.agents/PLAN.md) | High-level phased roadmap for building the DAW. |
 | [.agents/LOG.md](../.agents/LOG.md) | Chronological history of notable actions taken by any agent. |
+| [.agents/MEMORY.md](../.agents/MEMORY.md) | Durable agent memory: user preferences, audio-verification rules, environment notes. |
 | [docs/INDEX.md](INDEX.md) | This file. |
 | [src/index.md](../src/index.md) | Companion doc for `src/index.html`, the single HTML entry point. |
 | [src/css/main.md](../src/css/main.md) | Companion doc for `src/css/main.css`, the global stylesheet. |

@@ -43,6 +43,11 @@ function chordAt(bar) {
   return PROGRESSION[bar % PROGRESSION.length];
 }
 
+// The last bar of each 4-bar phrase gets the fills and pickups.
+function isPhraseEnd(bar) {
+  return bar % 4 === 3;
+}
+
 // One block per section, each note list built bar by bar with `perBar(chord, barStartBeat, bar)`.
 // `barStartBeat` is relative to the block, since note times are.
 function sectionBlocks(sections, perBar) {
@@ -56,10 +61,14 @@ function sectionBlocks(sections, perBar) {
 // Track volumes below were balanced by rendering each track solo offline (see neonPulse.md).
 function kickTrack() {
   return track("Kick", createPresetPatch("Kick"), {
-    volume: 0.7,
-    blocks: sectionBlocks([INTRO, GROOVE, LIFT, FINALE], (chord, start) =>
-      [0, 1, 2, 3].map((beat) => note(chord.kick, start + beat, 0.5, beat === 0 ? 120 : 108)),
-    ),
+    volume: 0.64,
+    blocks: sectionBlocks([INTRO, GROOVE, LIFT, FINALE], (chord, start, bar) => {
+      if (bar < INTRO[0] + 2) {
+        return []; // the pad and hats open the song; the kick arrives in bar 3
+      }
+      const beats = isPhraseEnd(bar) ? [0, 1, 2, 3, 3.5] : [0, 1, 2, 3];
+      return beats.map((beat) => note(chord.kick, start + beat, 0.5, beat === 0 ? 120 : beat === 3.5 ? 96 : 108));
+    }),
   });
 }
 
@@ -70,9 +79,24 @@ function snareTrack() {
     volume: 1,
     pan: 0.05,
     effects: [effect("reverb", { size: 1.2, mix: 0.18 })],
-    blocks: sectionBlocks([GROOVE, LIFT, FINALE], (chord, start) =>
-      [1, 3].map((beat) => note(SNARE_NOTE, start + beat, 0.25, 110)),
-    ),
+    blocks: [
+      ...sectionBlocks([GROOVE, LIFT, FINALE], (chord, start, bar) => {
+        const rows = [[1, 110], [3, 110]];
+        if (bar % 2 === 1) {
+          rows.push([3.75, 62]); // ghost on the "a" of 4
+        }
+        if (isPhraseEnd(bar)) {
+          rows.push([3.25, 70], [3.5, 84]); // pickup into the next phrase
+        }
+        return rows.map(([beat, velocity]) => note(SNARE_NOTE, start + beat, 0.25, velocity));
+      }),
+      // A rising 16th roll through the Break's last two beats, into the Finale.
+      block(
+        (BREAK[0] + BREAK[1]) * BEATS_PER_BAR - 2,
+        Array.from({ length: 8 }, (_, step) => note(SNARE_NOTE, step * 0.25, 0.2, 64 + step * 8)),
+        2,
+      ),
+    ],
   });
 }
 
@@ -87,7 +111,18 @@ function closedHatTrack() {
       const openHatsPlaying = bar >= LIFT[0] && bar < BREAK[0] || bar >= FINALE[0];
       return Array.from({ length: 16 }, (_, step) => step)
         .filter((step) => !(openHatsPlaying && step % 4 === 2))
-        .map((step) => note(HAT_NOTE, start + step * 0.25, 0.125, step % 4 === 2 ? 100 : step % 2 === 0 ? 70 : 55));
+        .map((step) => {
+          // Accents on the "and"s, a lighter one on the "a" of 2 every other bar, and a swell
+          // through the last beat of each phrase.
+          let velocity = step % 4 === 2 ? 100 : step % 2 === 0 ? 70 : 55;
+          if (bar % 2 === 1 && step === 7) {
+            velocity = 84;
+          }
+          if (isPhraseEnd(bar) && step >= 12) {
+            velocity = 60 + (step - 12) * 14;
+          }
+          return note(HAT_NOTE, start + step * 0.25, 0.125, velocity);
+        });
     }),
   });
 }
@@ -96,40 +131,64 @@ function openHatTrack() {
   return track("Open Hat", createPresetPatch("Open Hat"), {
     volume: 0.65,
     pan: -0.2,
-    blocks: sectionBlocks([LIFT, FINALE], (chord, start) =>
-      [0.5, 1.5, 2.5, 3.5].map((beat) => note(HAT_NOTE, start + beat, 0.25, 96)),
-    ),
+    blocks: sectionBlocks([LIFT, FINALE], (chord, start, bar) => {
+      const beats = isPhraseEnd(bar) ? [0.5, 1.5, 2.5, 3.5, 3.75] : [0.5, 1.5, 2.5, 3.5];
+      return beats.map((beat) => note(HAT_NOTE, start + beat, 0.25, beat === 3.75 ? 80 : 96));
+    }),
   });
 }
 
+// Fills on the last two beats of bar 8 (into the Lift) and bar 16 (into the loop's return).
 function tomTrack() {
-  const fillStart = (GROOVE[0] + GROOVE[1] - 1) * BEATS_PER_BAR + 2;
+  const fill = (lastBar) =>
+    block(
+      lastBar * BEATS_PER_BAR + 2,
+      TOM_FILL.map((pitch, index) => note(pitch, index * 0.5, 0.45, 100 + index * 6)),
+      2,
+    );
   return track("Toms", createPresetPatch("Tom"), {
     volume: 0.5,
     pan: -0.15,
-    blocks: [
-      block(
-        fillStart,
-        TOM_FILL.map((pitch, index) => note(pitch, index * 0.5, 0.45, 100 + index * 6)),
-        2,
-      ),
-    ],
+    blocks: [fill(GROOVE[0] + GROOVE[1] - 1), fill(FINALE[0] + FINALE[1] - 1)],
   });
 }
 
-// Classic house bass: off-beat 8ths, so it never lands on the kick.
+// A long, darker open-hat burst on each full section's first downbeat: the crash.
+function crashTrack() {
+  const patch = createPresetPatch("Open Hat");
+  patch.filter.cutoff = 4000;
+  patch.ampEnvelope = { attack: 0.001, decay: 0.9, sustain: 0, release: 0.5 };
+  patch.gain = 0.5;
+  return track("Crash", patch, {
+    volume: 0.7,
+    pan: 0.1,
+    effects: [effect("reverb", { size: 2, mix: 0.3 })],
+    blocks: [GROOVE, LIFT, FINALE].map(([firstBar]) => block(firstBar * BEATS_PER_BAR, [note(HAT_NOTE, 0, 1, 110)], 1)),
+  });
+}
+
+// Classic house bass: off-beat 8ths, so it never lands on the kick. Accents open the filter a
+// little (velocity sensitivity), and each phrase ends with an octave jump.
 function bassTrack() {
-  return track("Bass", createPresetPatch("Sub Bass"), {
-    volume: 0.6,
+  const patch = createPresetPatch("Sub Bass");
+  patch.filter.velocitySensitivity = 0.5;
+  return track("Bass", patch, {
+    volume: 0.56,
     effects: [effect("eq", { low: 0, mid: 2, high: 0 })],
-    blocks: sectionBlocks([GROOVE, LIFT, FINALE], (chord, start) =>
-      [0.5, 1.5, 2.5, 3.5].map((beat) => note(chord.root, start + beat, 0.4, beat === 2.5 ? 112 : 96)),
+    blocks: sectionBlocks([GROOVE, LIFT, FINALE], (chord, start, bar) =>
+      [0.5, 1.5, 2.5, 3.5].map((beat) => {
+        const pitch = isPhraseEnd(bar) && beat === 3.5 ? chord.root + 12 : chord.root;
+        return note(pitch, start + beat, 0.4, beat === 2.5 ? 112 : beat === 3.5 && isPhraseEnd(bar) ? 104 : 96);
+      }),
     ),
   });
 }
 
+// Velocity opens the pluck's filter, so the accents are brighter as well as louder.
 function arpTrack() {
-  return track("Pluck Arp", createPresetPatch("Pluck"), {
+  const patch = createPresetPatch("Pluck");
+  patch.filter.velocitySensitivity = 0.6;
+  return track("Pluck Arp", patch, {
     volume: 0.85,
     pan: 0.35,
     effects: [effect("delay", { sync: "1/8.", feedback: 0.35, mix: 0.3 })],
@@ -205,6 +264,7 @@ export function createNeonPulseProject() {
     closedHatTrack(),
     openHatTrack(),
     tomTrack(),
+    crashTrack(),
     bassTrack(),
     arpTrack(),
     padTrack(),
